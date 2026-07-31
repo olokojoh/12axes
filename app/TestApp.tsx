@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { axisExplanations, copy, localeNames, localePath, locales, type Locale } from "./i18n";
+import { axisExplanations, contactLabels, copy, localeNames, localePath, locales, publicContactUrl, type Locale } from "./i18n";
 
 type Question = {
   id: string;
@@ -82,12 +82,20 @@ const exampleUi = {
   zh: { example: "结果示例", position: "第三位置", match: "匹配", country: "最匹配的国家", personality: "最匹配的人物", description: "20 世纪 30 年代兴起于巴西的威权民族主义运动，具有基督教与法团主义基础。", countryDescription: "拥有强大中央国家的议会君主制。", personalityDescription: "巴西整合主义运动领导人。", real: "真实示例", title: "你的结果会是这样" },
 } as const;
 
+const previewAxes = {
+  en: [["Representation", "Democracy", 13, "Autocracy", 87], ["Economy", "Public", 68, "Private", 32], ["Morality", "Progressive", 5, "Traditionalist", 95]],
+  pt: [["Representação", "Democracia", 13, "Autocracia", 87], ["Economia", "Público", 68, "Privado", 32], ["Moralidade", "Progressista", 5, "Tradicionalista", 95]],
+  es: [["Representación", "Democracia", 13, "Autocracia", 87], ["Economía", "Público", 68, "Privado", 32], ["Moralidad", "Progresista", 5, "Tradicionalista", 95]],
+  ru: [["Представительство", "Демократия", 13, "Автократия", 87], ["Экономика", "Общественное", 68, "Частное", 32], ["Мораль", "Прогрессизм", 5, "Традиционализм", 95]],
+  zh: [["政治代表", "民主", 13, "威权", 87], ["经济", "公共", 68, "私营", 32], ["道德", "进步", 5, "传统", 95]],
+} as const;
+
 const auxiliaryUi = {
-  en: { recommended: "Recommended", match: "match", how: "How it works", axes: "12 axes", spectrum: "Political spectrum", versions: "Versions", privacy: "Anonymous · Client-side scoring · No account required", loadError: "The question bank could not be loaded. Please try again.", resultError: "The result service is temporarily unavailable. Your answers remain in this browser.", answerError: "Please answer every question before viewing the result.", footer: ["All results", "Ideologies", "Privacy", "License"] },
-  pt: { recommended: "Recomendado", match: "compatível", how: "Como funciona", axes: "12 eixos", spectrum: "Espectro político", versions: "Versões", privacy: "Anônimo · Pontuação no navegador · Sem conta", loadError: "Não foi possível carregar as perguntas. Tente novamente.", resultError: "O serviço de resultados está indisponível. Suas respostas continuam neste navegador.", answerError: "Responda a todas as perguntas antes de ver o resultado.", footer: ["Todos os resultados", "Ideologias", "Privacidade", "Licença"] },
-  es: { recommended: "Recomendado", match: "coincide", how: "Cómo funciona", axes: "12 ejes", spectrum: "Espectro político", versions: "Versiones", privacy: "Anónimo · Cálculo en el navegador · Sin cuenta", loadError: "No se pudieron cargar las preguntas. Inténtalo de nuevo.", resultError: "El servicio de resultados no está disponible. Tus respuestas siguen en este navegador.", answerError: "Responde todas las preguntas antes de ver el resultado.", footer: ["Todos los resultados", "Ideologías", "Privacidad", "Licencia"] },
-  ru: { recommended: "Рекомендуем", match: "совпадение", how: "Как это работает", axes: "12 осей", spectrum: "Политический спектр", versions: "Версии", privacy: "Анонимно · Расчёт в браузере · Без аккаунта", loadError: "Не удалось загрузить вопросы. Попробуйте ещё раз.", resultError: "Сервис результатов временно недоступен. Ответы остаются в браузере.", answerError: "Ответьте на все вопросы перед просмотром результата.", footer: ["Все результаты", "Идеологии", "Конфиденциальность", "Лицензия"] },
-  zh: { recommended: "推荐", match: "匹配", how: "测试原理", axes: "12 个轴", spectrum: "政治光谱", versions: "测试版本", privacy: "匿名 · 浏览器内计分 · 无需账户", loadError: "题库加载失败，请重试。", resultError: "结果服务暂时不可用，你的回答仍保留在当前浏览器中。", answerError: "请回答全部问题后再查看结果。", footer: ["全部结果", "意识形态", "隐私", "许可"] },
+  en: { recommended: "Recommended", match: "match", how: "How it works", axes: "12 axes", spectrum: "Political spectrum", versions: "Versions", privacy: "Anonymous · Client-side scoring · No account required", loadError: "The question bank could not be loaded. Please try again.", resultError: "The result service is temporarily unavailable. Your answers remain in this browser.", answerError: "Please answer every question before viewing the result.", fallbackNote: "", footer: ["All results", "Ideologies", "Privacy", "License"] },
+  pt: { recommended: "Recomendado", match: "compatível", how: "Como funciona", axes: "12 eixos", spectrum: "Espectro político", versions: "Versões", privacy: "Anônimo · Pontuação no navegador · Sem conta", loadError: "Não foi possível carregar as perguntas. Tente novamente.", resultError: "O serviço de resultados está indisponível. Suas respostas continuam neste navegador.", answerError: "Responda a todas as perguntas antes de ver o resultado.", fallbackNote: "", footer: ["Todos os resultados", "Ideologias", "Privacidade", "Licença"] },
+  es: { recommended: "Recomendado", match: "coincide", how: "Cómo funciona", axes: "12 ejes", spectrum: "Espectro político", versions: "Versiones", privacy: "Anónimo · Cálculo en el navegador · Sin cuenta", loadError: "No se pudieron cargar las preguntas. Inténtalo de nuevo.", resultError: "El servicio de resultados no está disponible. Tus respuestas siguen en este navegador.", answerError: "Responde todas las preguntas antes de ver el resultado.", fallbackNote: "Los nombres y las descripciones de los perfiles pueden aparecer en inglés.", footer: ["Todos los resultados", "Ideologías", "Privacidad", "Licencia"] },
+  ru: { recommended: "Рекомендуем", match: "совпадение", how: "Как это работает", axes: "12 осей", spectrum: "Политический спектр", versions: "Версии", privacy: "Анонимно · Расчёт в браузере · Без аккаунта", loadError: "Не удалось загрузить вопросы. Попробуйте ещё раз.", resultError: "Сервис результатов временно недоступен. Ответы остаются в браузере.", answerError: "Ответьте на все вопросы перед просмотром результата.", fallbackNote: "Названия и описания профилей могут отображаться на английском языке.", footer: ["Все результаты", "Идеологии", "Конфиденциальность", "Лицензия"] },
+  zh: { recommended: "推荐", match: "匹配", how: "测试原理", axes: "12 个轴", spectrum: "政治光谱", versions: "测试版本", privacy: "匿名 · 浏览器内计分 · 无需账户", loadError: "题库加载失败，请重试。", resultError: "结果服务暂时不可用，你的回答仍保留在当前浏览器中。", answerError: "请回答全部问题后再查看结果。", fallbackNote: "画像名称和描述可能以英文显示。", footer: ["全部结果", "意识形态", "隐私", "许可"] },
 } as const;
 
 function shuffle<T>(items: T[]) {
@@ -373,6 +381,7 @@ export function TestApp({ locale }: { locale: Locale }) {
           <span className="eyebrow">{text.resultEyebrow}</span>
           <h1>{text.resultTitle}</h1>
           <p>{text.resultLead}</p>
+          {auxiliaryUi[locale].fallbackNote && <p className="result-note">{auxiliaryUi[locale].fallbackNote}</p>}
         </section>
         <ResultMatch match={result.topMatch} label={text.topMatch} locale={locale} large />
         <section className="axis-results" aria-label="12 axes">
@@ -493,15 +502,10 @@ function ExampleCard({ locale }: { locale: Locale }) {
 
 function ResultPreview({ locale }: { locale: Locale }) {
   const text = exampleUi[locale];
-  const preview = [
-    ["Representation", "Democracy", 13, "Autocracy", 87],
-    ["Economy", "Public", 68, "Private", 32],
-    ["Morality", "Progressive", 5, "Traditionalist", 95],
-  ] as const;
   return (
     <div className="result-preview">
       <div className="preview-head"><div><span>{text.position}</span><h3>Brazilian Integralism</h3><p>{text.description}</p></div><div className="mini-ring large"><b>88%</b><i>{text.match}</i></div></div>
-      {preview.map(([title, left, leftValue, right, rightValue]) => <article className="axis-result" key={title}><header><h3>{title}</h3></header><div className="axis-labels"><b>{left} {leftValue}%</b><b>{rightValue}% {right}</b></div><div className="axis-bar"><span style={{ width: `${leftValue}%` }} /><i style={{ left: `${leftValue}%` }} /></div></article>)}
+      {previewAxes[locale].map(([title, left, leftValue, right, rightValue]) => <article className="axis-result" key={title}><header><h3>{title}</h3></header><div className="axis-labels"><b>{left} {leftValue}%</b><b>{rightValue}% {right}</b></div><div className="axis-bar"><span style={{ width: `${leftValue}%` }} /><i style={{ left: `${leftValue}%` }} /></div></article>)}
     </div>
   );
 }
@@ -522,7 +526,7 @@ function Footer({ locale }: { locale: Locale }) {
     <footer>
       <a className="logo" href={localePath(locale)}><b>12</b><span>axes</span></a>
       <p>{copy[locale].footer}</p>
-      <nav><a href={localePath(locale, "/vercel-app")}>12axes Vercel app</a><a href={localePath(locale, "/results")}>{results}</a><a href={localePath(locale, "/ideologies")}>{ideologies}</a><a href={localePath(locale, "/privacy")}>{privacy}</a><a href={localePath(locale, "/license")}>{license}</a></nav>
+      <nav><a href={localePath(locale, "/vercel-app")}>12axes Vercel app</a><a href={localePath(locale, "/results")}>{results}</a><a href={localePath(locale, "/ideologies")}>{ideologies}</a><a href={localePath(locale, "/12axes-vs-9axes")}>12Axes vs 9Axes</a><a href={localePath(locale, "/12axes-vs-8values")}>12Axes vs 8values</a><a href={localePath(locale, "/privacy")}>{privacy}</a><a href={localePath(locale, "/license")}>{license}</a><a href={publicContactUrl}>{contactLabels[locale]}</a>{locales.map((item) => <a href={localePath(item)} aria-current={item === locale ? "page" : undefined} key={item}>{localeNames[item]}</a>)}</nav>
     </footer>
   );
 }

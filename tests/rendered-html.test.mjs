@@ -21,7 +21,7 @@ test("server-renders the English 12axes test and SEO contract", async () => {
   assert.match(html, /<html lang="en">/);
   assert.match(html, /<title>12Axes Test — Free Political Ideology Quiz in 12 Axes<\/title>/);
   assert.match(html, /<h1[^>]*>.*Do you really know your.*political ideology/s);
-  assert.match(html, /rel="canonical" href="http:\/\/localhost:3000\/"/);
+  assert.match(html, /rel="canonical" href="https:\/\/12axes\.test\/"/);
   assert.match(html, /hrefLang="pt-BR"/);
   assert.match(html, /"@type":"WebApplication"/);
   assert.match(html, /"@type":"FAQPage"/);
@@ -37,10 +37,36 @@ test("server-renders translated language and localized SEO pages", async () => {
   assert.match(home, /<html lang="zh-CN">/);
   assert.match(home, /12Axes 测试中文版/);
   assert.match(home, /你真的了解自己的/);
-  assert.match(home, /rel="canonical" href="http:\/\/localhost:3000\/zh\/"/);
+  assert.match(home, /rel="canonical" href="https:\/\/12axes\.test\/zh"/);
   assert.match(page, /<html lang="es">/);
   assert.match(page, /Ideologías de 12Axes/);
-  assert.match(page, /rel="canonical" href="http:\/\/localhost:3000\/es\/ideologies"/);
+  assert.match(page, /rel="canonical" href="https:\/\/12axes\.test\/es\/ideologies"/);
+});
+
+test("keeps indexable pages discoverable and shared result URLs out of the index", async () => {
+  const [homeResponse, sharedResponse, sitemapResponse, robotsResponse] = await Promise.all([
+    render(),
+    render("/results?est=50&rep=50&pod=50&imi=50&dip=50&int=50&eco=50&con=50&com=50&rel=50&mor=50&tec=50"),
+    render("/sitemap.xml"),
+    render("/robots.txt"),
+  ]);
+  const [home, shared, sitemap, robots] = await Promise.all([
+    homeResponse.text(), sharedResponse.text(), sitemapResponse.text(), robotsResponse.text(),
+  ]);
+  assert.match(home, /href="\/12axes-vs-9axes"/);
+  assert.match(home, /href="\/12axes-vs-8values"/);
+  assert.match(shared, /<meta name="robots" content="noindex, follow"/);
+  assert.match(shared, /rel="canonical" href="https:\/\/12axes\.test\/results"/);
+  assert.match(sitemap, /<loc>https:\/\/12axes\.test\/zh\/12axes-vs-8values<\/loc>/);
+  assert.doesNotMatch(sitemap, /\?est=/);
+  assert.match(robots, /Sitemap: https:\/\/12axes\.test\/sitemap\.xml/);
+  assert.match(home, /href="https:\/\/github\.com\/olokojoh\/12axes\/issues"/);
+});
+
+test("publishes the authorized ads.txt seller record at the Pages root", async () => {
+  const expected = "google.com, pub-6112182006844125, DIRECT, f08c47fec0942fa0\n";
+  assert.equal(await readFile(new URL("../public/ads.txt", import.meta.url), "utf8"), expected);
+  assert.equal(await readFile(new URL("../dist/client/ads.txt", import.meta.url), "utf8"), expected);
 });
 
 test("bundles complete quiz data for all five languages", async () => {

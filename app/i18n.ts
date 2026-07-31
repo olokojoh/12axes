@@ -17,6 +17,16 @@ export const htmlLang: Record<Locale, string> = {
   zh: "zh-CN",
 };
 
+export const publicContactUrl = "https://github.com/olokojoh/12axes/issues";
+
+export const contactLabels: Record<Locale, string> = {
+  en: "Contact and feedback",
+  pt: "Contato e feedback",
+  es: "Contacto y comentarios",
+  ru: "Связь и отзывы",
+  zh: "联系与反馈",
+};
+
 export const copy = {
   en: {
     nav: ["How it works", "12 Axes", "Spectrum", "FAQ"],
@@ -185,5 +195,6 @@ export function isLocale(value: string): value is Locale {
 
 export function localePath(locale: Locale, path = "") {
   const prefix = locale === "en" ? "" : `/${locale}`;
-  return `${prefix}${path || "/"}`.replace("//", "/");
+  if (!path) return prefix || "/";
+  return `${prefix}${path}`.replace("//", "/");
 }

@@ -40,3 +40,8 @@ next-env.d.ts
 /.wrangler/
 /outputs/
 /work/
+
+# local launch and promotion material
+/.openai/
+/*词调研报告*.md
+/docs/seo-comment-outreach-*.md

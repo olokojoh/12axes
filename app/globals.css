@@ -1172,6 +1172,11 @@ footer nav {
   line-height: 1.6;
 }
 
+.result-intro .result-note {
+  margin-top: 10px;
+  font-size: 14px;
+}
+
 .match-card {
   padding: 23px;
 }
@@ -1705,12 +1710,9 @@ footer nav {
     font-size: 17px;
   }
 
-  .language-links a {
-    display: none;
-  }
-
-  .language-links a.active {
-    display: block;
+  .language-links {
+    flex-wrap: wrap;
+    justify-content: flex-end;
   }
 
   .comparison-table {

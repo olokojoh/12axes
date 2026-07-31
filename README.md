@@ -25,6 +25,10 @@ npm test
 `npm test` creates the production build and checks the rendered metadata,
 localized routes, and all five 240-question data files.
 
+Production: [12axes.net](https://12axes.net)
+
+Contact and feedback: [GitHub Issues](https://github.com/olokojoh/12axes/issues)
+
 ## Important paths
 
 - `app/TestApp.tsx` — home page, quiz, scoring, results, and result sharing.
@@ -61,4 +65,4 @@ matches. Raw answers are not sent to that service.
 
 The political-test lineage and upstream permission notice are documented in
 [`LICENSE`](LICENSE). This rebuild is independent and is not affiliated with
-Vercel or the disabled `12axes.vercel.app` deployment.
+Vercel or `12axes.vercel.app`.
