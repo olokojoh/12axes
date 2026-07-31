@@ -156,8 +156,9 @@ npm test
 The public repository is `https://github.com/olokojoh/12axes`; `main` deploys
 through the Cloudflare Pages native GitHub integration. The build bundles the
 vinext server entry as `dist/client/_worker.js`, and Pages publishes
-`dist/client`. The internal `sites` Git remote and `.openai/hosting.json` remain
-local and are not GitHub deployment targets.
+`dist/client`. `wrangler.jsonc` records the Pages output directory and Functions
+compatibility settings. The internal `sites` Git remote and
+`.openai/hosting.json` remain local and are not GitHub deployment targets.
 
 The public contact channel is the repository's enabled Issues page:
 `https://github.com/olokojoh/12axes/issues`.
