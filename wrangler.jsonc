@@ -2,6 +2,6 @@
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "12axes",
   "pages_build_output_dir": "./dist/client",
-  "compatibility_date": "2026-08-01",
+  "compatibility_date": "2026-05-15",
   "compatibility_flags": ["nodejs_compat"]
 }
