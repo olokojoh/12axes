@@ -144,6 +144,12 @@ The full page map and acceptance record are in `docs/onpage-seo-plan.md`.
 - The 2026-08-01 AUDIT+FIX scan verified all 40 sitemap pages return 200,
   self-canonicalize, have unique Title/Description and one H1, and are reachable
   from the homepage through ordinary links.
+- The 2026-08-01 production launch verified a clean public-repository checkout,
+  the `ads.txt` build gate, native Pages Git deployment, active SSL on both
+  custom domains, the apex-to-Pages DNS path, the path-preserving `www` 301,
+  representative production routes and assets, `/api/match`, and the 40-URL
+  sitemap. Search Console domain ownership is verified and the submitted
+  production sitemap has status `Success` with 40 discovered pages.
 
 ## Development and deployment
 
