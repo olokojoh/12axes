@@ -221,10 +221,17 @@ function ComparisonLocalized({ competitor, locale = "en" }: { competitor: string
 }
 
 const adChoiceLinks = ["https://www.google.com/settings/ads", "https://business.safety.google/privacy/", "https://www.aboutads.info/choices/"];
+const analyticsDisclosure: Record<Locale, string> = {
+  en: "Answers stay in browser memory and scoring runs on this page. Google Analytics measures visits and interactions and may use analytics cookies or similar technologies. Advertising cookies are described above.",
+  pt: "As respostas ficam na memória do navegador e a pontuação é calculada nesta página. O Google Analytics mede visitas e interações e pode usar cookies de análise ou tecnologias semelhantes. Os cookies de publicidade são descritos acima.",
+  es: "Las respuestas se guardan en la memoria del navegador y la puntuación se calcula en esta página. Google Analytics mide visitas e interacciones y puede usar cookies de análisis o tecnologías similares. Las cookies publicitarias se describen arriba.",
+  ru: "Ответы хранятся в памяти браузера, а подсчёт идёт на этой странице. Google Analytics измеряет посещения и взаимодействия и может использовать аналитические cookie или похожие технологии. Рекламные cookie описаны выше.",
+  zh: "回答保存在浏览器内存中，计分在本页完成。Google Analytics 用于衡量访问和互动，并可能使用分析 Cookie 或类似技术。与广告相关的 Cookie 见上方广告一节。",
+};
 
 function PrivacyBody({ locale = "en" }: { locale?: Locale }) {
   const text = bodyCopy[locale];
-  return <><section><h2>{text.answers}</h2><p>{text.answersText}</p></section><section><h2>{text.matching}</h2><p>{text.matchingText}</p></section><section><h2>{text.sharing}</h2><p>{text.sharingText}</p></section><section><h2>{text.advertising}</h2><p>{text.advertisingText}</p><ul>{text.adLinkLabels.map((label, index) => <li key={label}><a href={adChoiceLinks[index]}>{label}</a></li>)}</ul></section><section><h2>{text.analytics}</h2><p>{text.analyticsText}</p></section></>;
+  return <><section><h2>{text.answers}</h2><p>{text.answersText}</p></section><section><h2>{text.matching}</h2><p>{text.matchingText}</p></section><section><h2>{text.sharing}</h2><p>{text.sharingText}</p></section><section><h2>{text.advertising}</h2><p>{text.advertisingText}</p><ul>{text.adLinkLabels.map((label, index) => <li key={label}><a href={adChoiceLinks[index]}>{label}</a></li>)}</ul></section><section><h2>{text.analytics}</h2><p>{analyticsDisclosure[locale]}</p></section></>;
 }
 
 function LicenseBody({ locale = "en" }: { locale?: Locale }) {
