@@ -38,5 +38,7 @@ The release does not establish licensing or authorization for the external profi
 Branch `feat/adsterra-monetization` adds the four active Adsterra units for
 website ID `6011749`. Production still deploys only from `main`; the review
 branch has passed the production build, blocked-request interaction testing,
-and desktop/intermediate/mobile visual checks. It still must be pushed for a
-hosted preview and approved before a fast-forward production release.
+desktop/intermediate/mobile visual checks, and hosted preview verification.
+Remote review branch `dev` is available at
+`https://dev.12axes-1dg.pages.dev`. Production approval is still required
+before a fast-forward release to `main`.

@@ -258,3 +258,14 @@ hides non-active language links on SEO pages.
 - Local screenshots are in ignored `output/playwright/`. They verify layout
   only; blocked-request testing does not establish creative fill, Popunder
   triggering, credited impressions, conversions or revenue.
+- The review commit `070f863` was pushed to remote branch `dev` and Cloudflare
+  Pages produced active preview deployment `825dee6b-3b47-482e-9201-5e2f37804f43`
+  at `https://825dee6b.12axes-1dg.pages.dev`; the stable branch alias is
+  `https://dev.12axes-1dg.pages.dev`.
+- Hosted preview checks returned 200 for both sampled home languages, all five
+  privacy routes, `robots.txt`, and `sitemap.xml`. The rendered home HTML had
+  one Popunder script, one Social Bar script, one Banner loader, and one safe
+  Smartlink. Each privacy route named Adsterra and linked the provider privacy
+  and cookie policies. `/.git/config`, `/.env`, `/docs/project-handoff.md`, and
+  `/AGENTS.md` returned 404. No live ad or Smartlink was clicked; preview checks
+  do not prove fill, credited impressions, conversions, or revenue.
