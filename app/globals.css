@@ -1487,6 +1487,42 @@ footer nav {
   color: var(--muted);
 }
 
+.adsterra-placement {
+  width: 332px;
+  min-height: 318px;
+  margin: 0 auto 44px;
+  padding: 8px 15px 14px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--white);
+  text-align: center;
+}
+
+.adsterra-placement > span {
+  display: block;
+  margin-bottom: 7px;
+  color: var(--muted);
+  font-size: 10px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.adsterra-banner {
+  width: 300px;
+  height: 250px;
+  overflow: hidden;
+}
+
+.adsterra-placement > a {
+  display: inline-block;
+  margin-top: 10px;
+  color: var(--green-dark);
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 @media (max-width: 900px) {
   .site-header > nav {
     display: none;
@@ -1551,6 +1587,11 @@ footer nav {
   .hero {
     min-height: 0;
     padding: 48px 0 60px;
+  }
+
+  .adsterra-placement {
+    width: 330px;
+    max-width: calc(100% - 28px);
   }
 
   .hero h1 {

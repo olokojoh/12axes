@@ -29,6 +29,14 @@ Production: [12axes.net](https://12axes.net)
 
 Contact and feedback: [GitHub Issues](https://github.com/olokojoh/12axes/issues)
 
+## Advertising
+
+The home page contains a labeled Adsterra 300 × 250 Banner and a clearly
+identified sponsored Smartlink. Adsterra Popunder and Social Bar scripts are
+loaded site-wide according to the provider placement instructions. Advertising
+is kept outside quiz controls and result interactions. See `/privacy` for the
+current data-processing disclosure.
+
 ## Important paths
 
 - `app/TestApp.tsx` — home page, quiz, scoring, results, and result sharing.

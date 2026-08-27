@@ -25,6 +25,11 @@ test("server-renders the English 12axes test and SEO contract", async () => {
   assert.match(html, /hrefLang="pt-BR"/);
   assert.match(html, /"@type":"WebApplication"/);
   assert.match(html, /"@type":"FAQPage"/);
+  assert.equal(html.match(/<script[^>]+src="[^"]*eb3f2b4f596dc0ce02129439525e0ca9\.js"/g)?.length, 1);
+  assert.equal(html.match(/<script[^>]+src="[^"]*a2fe6205958e31ff19ac56d46d23af7e\.js"/g)?.length, 1);
+  assert.equal(html.match(/82007f0af8ba71f54644b287807fe713/g)?.length, 2);
+  assert.equal(html.match(/f515338cffcc25dfc402c9d90fd1bd01/g)?.length, 1);
+  assert.match(html, /rel="sponsored noopener noreferrer"/);
   assert.doesNotMatch(html, /codex-preview|SkeletonPreview|react-loading-skeleton/);
 });
 
@@ -41,6 +46,18 @@ test("server-renders translated language and localized SEO pages", async () => {
   assert.match(page, /<html lang="es">/);
   assert.match(page, /Ideologías de 12Axes/);
   assert.match(page, /rel="canonical" href="https:\/\/12axes\.test\/es\/ideologies"/);
+  assert.equal(page.match(/<script[^>]+src="[^"]*eb3f2b4f596dc0ce02129439525e0ca9\.js"/g)?.length, 1);
+  assert.equal(page.match(/<script[^>]+src="[^"]*a2fe6205958e31ff19ac56d46d23af7e\.js"/g)?.length, 1);
+  assert.doesNotMatch(page, /82007f0af8ba71f54644b287807fe713/);
+});
+
+test("discloses the active Adsterra formats in every language", async () => {
+  for (const path of ["/privacy", "/pt/privacy", "/es/privacy", "/ru/privacy", "/zh/privacy"]) {
+    const html = await (await render(path)).text();
+    assert.match(html, /Adsterra/);
+    assert.match(html, /https:\/\/adsterra\.com\/privacy-policy-managed\//);
+    assert.match(html, /https:\/\/adsterra\.com\/cookies\//);
+  }
 });
 
 test("keeps indexable pages discoverable and shared result URLs out of the index", async () => {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { AdsterraAdBlock } from "./AdsterraAds";
 import { axisExplanations, contactLabels, copy, localeNames, localePath, locales, publicContactUrl, type Locale } from "./i18n";
 
 type Question = {
@@ -432,6 +433,7 @@ export function TestApp({ locale }: { locale: Locale }) {
         </div>
         <ExampleCard locale={locale} />
       </section>
+      <AdsterraAdBlock locale={locale} />
       <section className="section-block">
         <span className="eyebrow">{text.discoverEyebrow}</span>
         <h2>{text.discoverTitle}</h2>

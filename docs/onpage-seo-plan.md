@@ -77,6 +77,11 @@ The dated keyword report remains useful historical evidence: it observed an
 HTTP 402 response on 2026-07-31. A fresh request on 2026-08-01 returned HTTP
 200, so outage language is not a durable page contract.
 
+The earlier non-intrusive AdSense review conclusions are superseded by the
+2026-08-27 Adsterra integration. Popunder and Social Bar are page-level overlay
+formats and require a fresh cross-network policy review before any AdSense
+approval claim can be made.
+
 | Finding | Before | Remediation | Verification |
 | --- | --- | --- | --- |
 | Request origin lost in page metadata | Canonical, hreflang, Open Graph URLs and social images resolved to `http://localhost:3000` | The Worker now supplies `x-forwarded-host` and `x-forwarded-proto` from the incoming request URL | All 40 sampled pages emit the `https://12axes.test` audit origin |

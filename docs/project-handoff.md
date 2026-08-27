@@ -226,3 +226,35 @@ status claim); `types/cloudflare.d.ts` provides minimal ambient Worker types
 so a standalone `tsc --noEmit` can pass, pending a proper
 `@cloudflare/workers-types` dependency; and the mobile stylesheet no longer
 hides non-active language links on SEO pages.
+
+## 2026-08-27 Adsterra integration
+
+- Adsterra website: `12axes.net`, website ID `6011749`, category `Other`, adult
+  ads disabled.
+- Active units: Popunder `30951434`, Smartlink `30951435`, Social Bar
+  `30951436`, and Banner 300 × 250 `30951437`.
+- Popunder is loaded once in the `<head>` of each root layout;
+  Social Bar is loaded once at the end of each body. Both are page-level formats
+  and are not constrained by the visible ad box.
+- The labeled Banner and sponsored Smartlink appear once on each localized home
+  page, after the product hero and outside all quiz/result controls. Smartlink
+  opens a new tab with `rel="sponsored noopener noreferrer"`.
+- The five privacy routes name all four active formats, describe provider and
+  partner processing, and link Adsterra's current privacy and cookie policies.
+- The prior AdSense non-intrusive-placement review is superseded because
+  Popunder and Social Bar can overlay or open a new browsing context. The
+  authorized AdSense `ads.txt` seller line remains, but no Google ad script is
+  loaded.
+- Review branch: `feat/adsterra-monetization`. Production remains `main` through
+  the native Cloudflare Pages GitHub integration; no production push has been
+  authorized at this stage.
+- Local verification passed on 2026-08-27: `npm run lint`, `npx tsc --noEmit`,
+  the production build, six rendered-HTML tests, `git diff --check`, source
+  placement counts, and five-language privacy disclosure checks. Playwright
+  exercised the homepage-to-short-quiz flow with all third-party ad and
+  analytics requests blocked. Full-page reviews at 1280, 1024 and 390 CSS
+  pixels showed no horizontal overflow, a reserved 300 × 250 Banner, mobile
+  product-before-ad ordering, and no overlap with the primary test control.
+- Local screenshots are in ignored `output/playwright/`. They verify layout
+  only; blocked-request testing does not establish creative fill, Popunder
+  triggering, credited impressions, conversions or revenue.

@@ -32,3 +32,11 @@ The build validates the exact authorized AdSense seller line before compiling. I
 - Production checks passed for representative localized pages, `ads.txt`, `robots.txt`, sitemap XML, a hashed JavaScript asset, `/api/match`, canonical/contact markup, a real 404, TLS, and the `www` redirect.
 
 The release does not establish licensing or authorization for the external profile, country, or personality data. AdSense connection, a certified CMP, link-spam exposure, review risk, and reputation risk remain follow-up items. The independent pcManager promotion session was not stopped, paused, restarted, or modified during release work.
+
+## 2026-08-27 Adsterra review state
+
+Branch `feat/adsterra-monetization` adds the four active Adsterra units for
+website ID `6011749`. Production still deploys only from `main`; the review
+branch has passed the production build, blocked-request interaction testing,
+and desktop/intermediate/mobile visual checks. It still must be pushed for a
+hosted preview and approved before a fast-forward production release.
