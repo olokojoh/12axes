@@ -269,3 +269,24 @@ hides non-active language links on SEO pages.
   and cookie policies. `/.git/config`, `/.env`, `/docs/project-handoff.md`, and
   `/AGENTS.md` returned 404. No live ad or Smartlink was clicked; preview checks
   do not prove fill, credited impressions, conversions, or revenue.
+
+## 2026-08-28 interaction-area placement revision
+
+- The visible Adsterra block now appears once in each durable product state:
+  home, test-format selection, question flow, accuracy extension, and results.
+  The transient loading screen intentionally has no visible ad.
+- Each block is a sibling immediately after or between the state's main content
+  sections. It is never nested inside question choices, navigation, sharing,
+  restart, or result controls, so the controls keep their full click area.
+- The 300 × 250 Banner keeps reserved dimensions to prevent layout shift. The
+  sponsored Smartlink stays directly below it and requires an intentional click.
+- These mutually exclusive states reuse Banner unit `30951437` and Smartlink
+  unit `30951435`, so only one visible block is mounted at a time. Popunder unit
+  `30951434` and Social Bar unit `30951436` remain page-level formats.
+- Local verification passed on 2026-08-28: lint, TypeScript, the production
+  build, six rendered-HTML tests, source placement counts, and `git diff
+  --check`. A blocked-request Playwright run exercised all five durable states
+  at 390 CSS pixels and the results state at 1280 pixels. Every state had one
+  visible ad block, one Banner script node, no horizontal overflow, and no
+  overlap with adjacent controls. Preview review is still required before
+  release.

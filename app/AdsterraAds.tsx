@@ -10,9 +10,11 @@ const labels: Record<Locale, { ads: string; sponsored: string }> = {
   zh: { ads: "广告", sponsored: "赞助链接" },
 };
 
-export function AdsterraAdBlock({ locale }: { locale: Locale }) {
+type Placement = "home" | "format" | "quiz" | "extend" | "results";
+
+export function AdsterraAdBlock({ locale, placement }: { locale: Locale; placement: Placement }) {
   return (
-    <section className="adsterra-placement" aria-label={labels[locale].ads}>
+    <section className={`adsterra-placement adsterra-placement-${placement}`} aria-label={labels[locale].ads} data-ad-placement={placement}>
       <span>{labels[locale].ads}</span>
       <div className="adsterra-banner" data-ad-unit-id="30951437">
         <script dangerouslySetInnerHTML={{ __html: "atOptions = { 'key' : '82007f0af8ba71f54644b287807fe713', 'format' : 'iframe', 'height' : 250, 'width' : 300, 'params' : {} };" }} />

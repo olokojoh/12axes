@@ -1523,6 +1523,16 @@ footer nav {
   text-underline-offset: 3px;
 }
 
+.adsterra-placement-format,
+.adsterra-placement-quiz,
+.adsterra-placement-extend {
+  margin-top: 28px;
+}
+
+.adsterra-placement-results {
+  margin-bottom: 28px;
+}
+
 @media (max-width: 900px) {
   .site-header > nav {
     display: none;

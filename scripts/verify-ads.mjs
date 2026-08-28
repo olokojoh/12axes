@@ -7,10 +7,11 @@ if (actual !== expected) {
   throw new Error("public/ads.txt does not match the authorized AdSense seller record");
 }
 
-const [englishLayout, segmentLayout, placement] = await Promise.all([
+const [englishLayout, segmentLayout, placement, testApp] = await Promise.all([
   readFile(new URL("../app/(en)/layout.tsx", import.meta.url), "utf8"),
   readFile(new URL("../app/[segment]/layout.tsx", import.meta.url), "utf8"),
   readFile(new URL("../app/AdsterraAds.tsx", import.meta.url), "utf8"),
+  readFile(new URL("../app/TestApp.tsx", import.meta.url), "utf8"),
 ]);
 const popunder = "eb3f2b4f596dc0ce02129439525e0ca9.js";
 const socialBar = "a2fe6205958e31ff19ac56d46d23af7e.js";
@@ -24,5 +25,11 @@ for (const layout of [englishLayout, segmentLayout]) {
 }
 
 if (placement.split(banner).length !== 3 || placement.split(smartlink).length !== 2) {
-  throw new Error("the home ad block must contain one Banner loader and one Smartlink");
+  throw new Error("the interaction ad block must contain one Banner loader and one Smartlink");
+}
+
+for (const placementName of ["home", "format", "quiz", "extend", "results"]) {
+  if (testApp.split(`placement="${placementName}"`).length !== 2) {
+    throw new Error(`TestApp must contain one ${placementName} ad placement`);
+  }
 }

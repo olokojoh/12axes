@@ -304,6 +304,7 @@ export function TestApp({ locale }: { locale: Locale }) {
             ))}
           </div>
         </section>
+        <AdsterraAdBlock locale={locale} placement="format" />
       </main>
     );
   }
@@ -353,6 +354,7 @@ export function TestApp({ locale }: { locale: Locale }) {
             : <button className="primary-button" disabled={!answers[currentQuestion.id]} onClick={() => variant === "short" && questions.length === 36 ? setMode("extend") : finish()}>{text.seeResult} →</button>}
         </nav>
         {error && <p className="inline-error" role="alert">{error}</p>}
+        <AdsterraAdBlock locale={locale} placement="quiz" />
       </main>
     );
   }
@@ -370,6 +372,7 @@ export function TestApp({ locale }: { locale: Locale }) {
           </div>
         </section>
         <button className="secondary-button back-alone" onClick={() => { setMode("quiz"); setQuestionIndex(questions.length - 1); }}>← {text.back}</button>
+        <AdsterraAdBlock locale={locale} placement="extend" />
       </main>
     );
   }
@@ -385,6 +388,7 @@ export function TestApp({ locale }: { locale: Locale }) {
           {auxiliaryUi[locale].fallbackNote && <p className="result-note">{auxiliaryUi[locale].fallbackNote}</p>}
         </section>
         <ResultMatch match={result.topMatch} label={text.topMatch} locale={locale} large />
+        <AdsterraAdBlock locale={locale} placement="results" />
         <section className="axis-results" aria-label="12 axes">
           {result.axes.map((axis) => {
             const localizedAxis = data?.axes.find((item) => item.id === axis.axisId);
@@ -433,7 +437,7 @@ export function TestApp({ locale }: { locale: Locale }) {
         </div>
         <ExampleCard locale={locale} />
       </section>
-      <AdsterraAdBlock locale={locale} />
+      <AdsterraAdBlock locale={locale} placement="home" />
       <section className="section-block">
         <span className="eyebrow">{text.discoverEyebrow}</span>
         <h2>{text.discoverTitle}</h2>
