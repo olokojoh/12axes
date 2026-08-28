@@ -245,9 +245,9 @@ hides non-active language links on SEO pages.
   Popunder and Social Bar can overlay or open a new browsing context. The
   authorized AdSense `ads.txt` seller line remains, but no Google ad script is
   loaded.
-- Review branch: `feat/adsterra-monetization`. Production remains `main` through
-  the native Cloudflare Pages GitHub integration; no production push has been
-  authorized at this stage.
+- Review branch: `feat/adsterra-monetization`. At this stage of the 2026-08-27
+  work, production remained `main` through the native Cloudflare Pages GitHub
+  integration and no production push had yet been authorized.
 - Local verification passed on 2026-08-27: `npm run lint`, `npx tsc --noEmit`,
   the production build, six rendered-HTML tests, `git diff --check`, source
   placement counts, and five-language privacy disclosure checks. Playwright
@@ -299,3 +299,22 @@ hides non-active language links on SEO pages.
   checks confirmed one Popunder script, one Social Bar script, one Banner
   script, one visible placement, no overflow, and a 28px gap after quiz controls.
   No live ad or Smartlink was clicked.
+
+## 2026-08-28 Adsterra production release
+
+- With explicit production authorization, `origin/main` was fast-forwarded
+  from `9daf030` to the reviewed `dev` commit `24658ca`; no merge conflict or
+  extra merge commit was introduced.
+- Cloudflare Pages production deployment
+  `86905de2-e04a-4f82-8ffe-5bb7987c1b9c` became Active for source commit
+  `24658ca`. The production domain is `https://12axes.net`.
+- The five localized home routes, five localized privacy routes, `robots.txt`,
+  `sitemap.xml`, and `ads.txt` returned 200. `/.git/config`, `/.env`,
+  `/docs/project-handoff.md`, and `/AGENTS.md` returned 404.
+- With third-party advertising and analytics requests blocked, production DOM
+  checks found one Popunder script, one Social Bar script, one Banner script,
+  one Smartlink, one visible placement, and no horizontal overflow. The
+  homepage-to-format-to-question flow retained one ad block while the question
+  controls and ad remained separated by 28px. No live ad or Smartlink was
+  clicked; fill, credited impressions, conversions, and revenue remain
+  observable only in Adsterra reporting.
