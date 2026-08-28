@@ -288,5 +288,14 @@ hides non-active language links on SEO pages.
   --check`. A blocked-request Playwright run exercised all five durable states
   at 390 CSS pixels and the results state at 1280 pixels. Every state had one
   visible ad block, one Banner script node, no horizontal overflow, and no
-  overlap with adjacent controls. Preview review is still required before
-  release.
+  overlap with adjacent controls. The hosted preview review below completed
+  the `dev` release-line verification.
+- Implementation commit `5672711` was pushed to remote `dev`. Cloudflare Pages
+  created active preview `3bd3128d-a775-42c4-9d8b-726af9f8a88f` at
+  `https://3bd3128d.12axes-1dg.pages.dev`; the stable alias remains
+  `https://dev.12axes-1dg.pages.dev`. All home and privacy routes in five
+  languages, `robots.txt`, and `sitemap.xml` returned 200. The four sampled
+  private paths returned 404. With third-party requests blocked, hosted mobile
+  checks confirmed one Popunder script, one Social Bar script, one Banner
+  script, one visible placement, no overflow, and a 28px gap after quiz controls.
+  No live ad or Smartlink was clicked.
