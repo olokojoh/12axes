@@ -7,7 +7,7 @@ import { TestApp } from "../../TestApp";
 export async function generateMetadata({ params, searchParams }: { params: Promise<{ segment: string; slug: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const { segment, slug } = await params;
   const query = await searchParams;
-  if (isLocale(segment) && slug === "results" && query.est) {
+  if (isLocale(segment) && slug === "results" && (query.est || query.share || query.paid || query.cancelled || query.report)) {
     const metadata = pageMetadata(segment, "results", await requestBaseUrl());
     return { ...metadata, robots: { index: false, follow: true } };
   }
@@ -19,6 +19,6 @@ export default async function LocalizedSeoPage({ params, searchParams }: { param
   const { segment, slug } = await params;
   if (!isLocale(segment) || !seoSlugs.includes(slug as SeoSlug)) notFound();
   const query = await searchParams;
-  if (slug === "results" && query.est) return <TestApp locale={segment} />;
+  if (slug === "results" && (query.est || query.share || query.paid || query.cancelled || query.report)) return <TestApp locale={segment} />;
   return <SeoPage locale={segment} slug={slug as SeoSlug} />;
 }

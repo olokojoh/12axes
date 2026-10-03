@@ -1,77 +1,80 @@
 # 12Axes Test
 
-Independent rebuild of the 12Axes political ideology test captured at
-`https://web.archive.org/web/20260724211411/https://12axes.vercel.app/`.
+Independent 12-axis quiz implementation with English, Portuguese, Spanish,
+Russian and Simplified Chinese interfaces.
 
-The site includes the complete 36, 60, and 240-question flows, twelve-axis
-scoring, ideology/country/personality matching, shareable result URLs, and
-English, Portuguese, Spanish, Russian, and Simplified Chinese versions.
+**2026-10-03: the optional report is deployed in all five site languages.**
+Production: https://12axes.net. Preview: https://payments.12axes-1dg.pages.dev (Stripe test mode only).
+Sandbox payment, recovery, duplicate webhook and refund revocation passed; no real payment was made for verification.
+Test report emails arrived in Gmail spam; inbox delivery remains unverified.
+Matching runs locally against a pinned reference catalog. The owner approved encrypted Cloudflare D1
+storage and requested skipping the content authorization review; commercial
+authorization has not been verified.
+See [the implementation record](docs/monetization-implementation.md) for completed
+infrastructure, verification, design decisions and remaining launch work.
 
-## Local development
+## Development and validation
 
-Requirements: Node.js 22.13 or newer.
+Node.js 22.13 or newer is required.
 
 ```bash
 npm install
 npm run dev
-```
-
-The development server prints its local URL. Production verification:
-
-```bash
 npm test
+npx tsc --noEmit
+npm run lint
 ```
 
-`npm test` creates the production build and checks the rendered metadata,
-localized routes, and all five 240-question data files.
-
-Production: [12axes.net](https://12axes.net)
-
-Contact and feedback: [GitHub Issues](https://github.com/olokojoh/12axes/issues)
-
-## Advertising
-
-The home, test-format, question, accuracy-extension, and results screens each
-contain one labeled Adsterra 300 × 250 Banner and one clearly identified
-sponsored Smartlink beside or immediately after their main content. Adsterra
-Popunder and Social Bar scripts are loaded site-wide according to the provider
-placement instructions. Advertising remains outside quiz and result controls.
-See `/privacy` for the current data-processing disclosure.
+`npm test` builds the Cloudflare Pages artifact, tests localized HTML and
+commerce pages, then exercises encryption, consent, report access, Stripe
+webhook processing, refunds, recovery and email retries against local D1.
+Fixtures are synthetic and email delivery is mocked.
 
 ## Important paths
 
-- `app/TestApp.tsx` — home page, quiz, scoring, results, and result sharing.
-- `app/i18n.ts` — UI copy and locale routing.
-- `app/SeoPage.tsx` — supporting SEO pages.
-- `app/site.ts` — metadata, canonical/hreflang, Open Graph, and schema data.
-- `app/api/match/route.ts` — validated proxy to the comparison service.
-- `public/data/quiz.*.json` — complete localized question banks.
-- `scripts/prepare-quiz-data.mjs` — reproducible question-bank preparation.
-- `docs/project-handoff.md` — architecture, behavior, and takeover notes.
-- `docs/onpage-seo-plan.md` — SEO page map and validation record.
+- `app/TestApp.tsx`: quiz, free results, optional report and sharing UI.
+- `app/Analytics.tsx`: consent-gated analytics with filtered event parameters.
+- `app/CommercePage.tsx`: localized privacy, terms, refund, pricing, about and contact.
+- `app/api/checkout`, `app/api/stripe`, `app/api/report`: payment and report access.
+- `app/api/share`: consented, encrypted, expiring public result links.
+- `app/api/support`: private encrypted support submissions.
+- `app/api/match`, `app/lib/matching.ts`: local profile matching; no upstream API dependency.
+- `scripts/import-matching-data.mjs`: imports the catalog from a pinned source revision.
+- `worker/report-email.ts`: durable email delivery and expired-record cleanup.
+- `scripts/retry-report-emails.mjs`: requeue failed delivery jobs after checking order access.
+- `scripts/support-inbox.mjs`: support review and verified deletion requests.
+- `wrangler.email.jsonc`: separate queue consumer deployment.
+- `migrations`: D1 schema; no plaintext answers or axis scores.
+- `public/data/quiz.*.json`: existing question banks.
 
-## Routes
+## Privacy and reports
 
-English is served without a prefix. Other languages use `/pt`, `/es`, `/ru`,
-and `/zh`. Every language also has:
+The preview does not load advertising scripts. Analytics loads
+only after consent; GA4 dashboard settings still need verification.
+Explicit consent is separate for sharing and buying a report.
 
-- `/vercel-app`
-- `/results`
-- `/ideologies`
-- `/12axes-vs-9axes`
-- `/12axes-vs-8values`
-- `/privacy`
-- `/license`
+The owner approved encrypted result storage in Cloudflare D1, linked to an
+order and payment email, for cross-device recovery. This **is storage, not
+anonymity**. Public share links do not include experimental assignments or
+private report tokens. Private report credentials use URL fragments and POST
+requests. All report APIs return `no-store`.
 
-The result route accepts the twelve original share parameters: `est`, `rep`,
-`pod`, `imi`, `dip`, `int`, `eco`, `con`, `com`, `rel`, `mor`, and `tec`.
+The optional report uses a one-time US$4.99 price, without subscriptions,
+false discount anchors, invented country averages, or permanent access promises.
+PDF export currently uses browser print/save, not an emailed PDF attachment.
+Full refunds revoke online access; downloaded files cannot be revoked.
+Portuguese pages show a dated BRL estimate, while checkout charges USD.
+The paid result can be copied directly as a private link if email is delayed.
 
-## Data and attribution
+## Routes and licenses
 
-Questions are served locally. Final percentages are sent to
-`one2axes-backend.onrender.com` to retrieve ideology, country, and personality
-matches. Raw answers are not sent to that service.
+English has no language prefix; other locales use `/pt`, `/es`, `/ru`, `/zh`.
+Supporting pages include `/results`, `/ideologies`, `/vercel-app`, comparisons,
+`/license`, and the six commerce pages. Old score-parameter links are read for
+compatibility and removed from the browser URL; this cannot erase historical
+CDN or server logs.
 
-The political-test lineage and upstream permission notice are documented in
-[`LICENSE`](LICENSE). This rebuild is independent and is not affiliated with
-Vercel or `12axes.vercel.app`.
+The legacy notice in `LICENSE` must not be represented as permission covering
+all current questions and matching profiles. The owner requested skipping the
+authorization review; no verified commercial-license claim is made.
+No access-control bypass is implemented.

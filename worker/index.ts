@@ -43,7 +43,13 @@ const worker = {
     const headers = new Headers(request.headers);
     headers.set("x-forwarded-host", url.host);
     headers.set("x-forwarded-proto", url.protocol.slice(0, -1));
-    return handler.fetch(new Request(request, { headers }), env, ctx);
+    const response = await handler.fetch(new Request(request, { headers }), env, ctx);
+    const secured = new Response(response.body, response);
+    secured.headers.set("Referrer-Policy", "no-referrer");
+    if (url.pathname.startsWith("/api/") || url.search || url.pathname.endsWith("/results")) {
+      secured.headers.set("Cache-Control", "no-store");
+    }
+    return secured;
   },
 };
 

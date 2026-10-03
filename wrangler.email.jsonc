@@ -1,0 +1,12 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "12axes-report-email",
+  "main": "worker/report-email.ts",
+  "workers_dev": false,
+  "compatibility_date": "2026-05-15",
+  "compatibility_flags": ["nodejs_compat"],
+  "d1_databases": [{"binding":"DB","database_name":"12axes-db","database_id":"d8c10371-80f7-4147-a1da-c337c5764757"}],
+  "queues": {"consumers": [{"queue":"12axes-report-email","max_batch_size":10,"max_retries":10,"dead_letter_queue":"12axes-report-email-failed"}]},
+  "triggers": {"crons":["0 3 * * *"]},
+  "vars": {"PUBLIC_BASE_URL":"https://12axes.net","REPORT_FROM_EMAIL":"12Axes <report@reports.12axes.net>"}
+}

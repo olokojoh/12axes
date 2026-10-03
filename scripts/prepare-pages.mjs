@@ -6,7 +6,7 @@ await build({
   bundle: true,
   format: "esm",
   platform: "neutral",
-  external: ["node:*"],
+  external: ["node:*", "cloudflare:*"],
   outfile: "dist/client/_worker.js",
 });
 

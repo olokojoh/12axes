@@ -6,9 +6,9 @@ const isCodexSeatbeltSandbox = process.env.CODEX_SANDBOX === "seatbelt";
 
 const localBindingConfig = {
   main: "./worker/index.ts",
-  compatibility_flags: ["nodejs_compat"],
-  d1_databases: [],
+  d1_databases: [{ binding: "DB", database_name: "12axes-db", database_id: "d8c10371-80f7-4147-a1da-c337c5764757" }],
   r2_buckets: [],
+  queues: { producers: [{ binding: "REPORT_EMAIL_QUEUE", queue: "12axes-report-email" }] },
 };
 
 export default defineConfig(async () => {

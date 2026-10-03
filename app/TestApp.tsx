@@ -1,7 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { AdsterraAdBlock } from "./AdsterraAds";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { commerceSlugs, commerceLabels } from "./CommercePage";
+import { ReportRecovery } from "./ReportRecovery";
+import { reportUi, axisReading, privateLinkLabel } from "./report-copy";
+import { trackEvent } from "./Analytics";
+import { BrlEstimate } from "./BrlEstimate";
 import { axisExplanations, contactLabels, copy, localeNames, localePath, locales, publicContactUrl, type Locale } from "./i18n";
 
 type Question = {
@@ -73,7 +77,10 @@ type Result = {
 type Mode = "home" | "format" | "quiz" | "extend" | "loading" | "results";
 type Variant = "short" | "extended" | "extreme";
 
-const shareKeys = ["est", "rep", "pod", "imi", "dip", "int", "eco", "con", "com", "rel", "mor", "tec"];
+
+function deviceClass() {
+  return window.matchMedia("(pointer: coarse)").matches ? "mobile" : "desktop";
+}
 
 const exampleUi = {
   en: { example: "Example result", position: "Third position", match: "match", country: "Most compatible country", personality: "Most compatible personality", description: "Authoritarian nationalist movement that emerged in 1930s Brazil, with a Christian and corporatist base.", countryDescription: "Parliamentary monarchy with a strong central state.", personalityDescription: "Leader of Brazilian Integralism.", real: "Real example", title: "Here's what your result looks like" },
@@ -92,12 +99,13 @@ const previewAxes = {
 } as const;
 
 const auxiliaryUi = {
-  en: { recommended: "Recommended", match: "match", how: "How it works", axes: "12 axes", spectrum: "Political spectrum", versions: "Versions", privacy: "Anonymous · Client-side scoring · No account required", loadError: "The question bank could not be loaded. Please try again.", resultError: "The result service is temporarily unavailable. Your answers remain in this browser.", answerError: "Please answer every question before viewing the result.", fallbackNote: "", footer: ["All results", "Ideologies", "Privacy", "License"] },
-  pt: { recommended: "Recomendado", match: "compatível", how: "Como funciona", axes: "12 eixos", spectrum: "Espectro político", versions: "Versões", privacy: "Anônimo · Pontuação no navegador · Sem conta", loadError: "Não foi possível carregar as perguntas. Tente novamente.", resultError: "O serviço de resultados está indisponível. Suas respostas continuam neste navegador.", answerError: "Responda a todas as perguntas antes de ver o resultado.", fallbackNote: "", footer: ["Todos os resultados", "Ideologias", "Privacidade", "Licença"] },
-  es: { recommended: "Recomendado", match: "coincide", how: "Cómo funciona", axes: "12 ejes", spectrum: "Espectro político", versions: "Versiones", privacy: "Anónimo · Cálculo en el navegador · Sin cuenta", loadError: "No se pudieron cargar las preguntas. Inténtalo de nuevo.", resultError: "El servicio de resultados no está disponible. Tus respuestas siguen en este navegador.", answerError: "Responde todas las preguntas antes de ver el resultado.", fallbackNote: "Los nombres y las descripciones de los perfiles pueden aparecer en inglés.", footer: ["Todos los resultados", "Ideologías", "Privacidad", "Licencia"] },
-  ru: { recommended: "Рекомендуем", match: "совпадение", how: "Как это работает", axes: "12 осей", spectrum: "Политический спектр", versions: "Версии", privacy: "Анонимно · Расчёт в браузере · Без аккаунта", loadError: "Не удалось загрузить вопросы. Попробуйте ещё раз.", resultError: "Сервис результатов временно недоступен. Ответы остаются в браузере.", answerError: "Ответьте на все вопросы перед просмотром результата.", fallbackNote: "Названия и описания профилей могут отображаться на английском языке.", footer: ["Все результаты", "Идеологии", "Конфиденциальность", "Лицензия"] },
-  zh: { recommended: "推荐", match: "匹配", how: "测试原理", axes: "12 个轴", spectrum: "政治光谱", versions: "测试版本", privacy: "匿名 · 浏览器内计分 · 无需账户", loadError: "题库加载失败，请重试。", resultError: "结果服务暂时不可用，你的回答仍保留在当前浏览器中。", answerError: "请回答全部问题后再查看结果。", fallbackNote: "画像名称和描述可能以英文显示。", footer: ["全部结果", "意识形态", "隐私", "许可"] },
+  en: { recommended: "Recommended", match: "match", how: "How it works", axes: "12 axes", spectrum: "Political spectrum", versions: "Versions", privacy: "No account · Scoring in this browser", loadError: "The question bank could not be loaded. Please try again.", resultError: "The result service is temporarily unavailable. Your answers remain in this browser.", answerError: "Please answer every question before viewing the result.", fallbackNote: "", footer: ["All results", "Ideologies", "Privacy", "License"] },
+  pt: { recommended: "Recomendado", match: "compatível", how: "Como funciona", axes: "12 eixos", spectrum: "Espectro político", versions: "Versões", privacy: "Sem conta · Pontuação neste navegador", loadError: "Não foi possível carregar as perguntas. Tente novamente.", resultError: "O serviço de resultados está indisponível. Suas respostas continuam neste navegador.", answerError: "Responda a todas as perguntas antes de ver o resultado.", fallbackNote: "", footer: ["Todos os resultados", "Ideologias", "Privacidade", "Licença"] },
+  es: { recommended: "Recomendado", match: "coincide", how: "Cómo funciona", axes: "12 ejes", spectrum: "Espectro político", versions: "Versiones", privacy: "Sin cuenta · Cálculo en este navegador", loadError: "No se pudieron cargar las preguntas. Inténtalo de nuevo.", resultError: "El servicio de resultados no está disponible. Tus respuestas siguen en este navegador.", answerError: "Responde todas las preguntas antes de ver el resultado.", fallbackNote: "", footer: ["Todos los resultados", "Ideologías", "Privacidad", "Licencia"] },
+  ru: { recommended: "Рекомендуем", match: "совпадение", how: "Как это работает", axes: "12 осей", spectrum: "Политический спектр", versions: "Версии", privacy: "Без аккаунта · Расчёт в браузере", loadError: "Не удалось загрузить вопросы. Попробуйте ещё раз.", resultError: "Сервис результатов временно недоступен. Ответы остаются в браузере.", answerError: "Ответьте на все вопросы перед просмотром результата.", fallbackNote: "", footer: ["Все результаты", "Идеологии", "Конфиденциальность", "Лицензия"] },
+  zh: { recommended: "推荐", match: "匹配", how: "测试原理", axes: "12 个轴", spectrum: "政治光谱", versions: "测试版本", privacy: "无需账户 · 浏览器内计分", loadError: "题库加载失败，请重试。", resultError: "结果服务暂时不可用，你的回答仍保留在当前浏览器中。", answerError: "请回答全部问题后再查看结果。", fallbackNote: "", footer: ["全部结果", "意识形态", "隐私", "许可"] },
 } as const;
+
 
 function shuffle<T>(items: T[]) {
   const result = [...items];
@@ -155,16 +163,20 @@ export function TestApp({ locale }: { locale: Locale }) {
   const [result, setResult] = useState<Result | null>(null);
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
-
-  useEffect(() => {
-    const values = shareKeys.map((key) => new URLSearchParams(window.location.search).get(key));
-    if (!window.location.pathname.endsWith("/results") || values.some((value) => value === null)) return;
-    const axes = values.map(Number);
-    if (axes.some((value) => !Number.isFinite(value) || value < 0 || value > 100)) return;
-    fetchResult(axes);
-    // A shared result is hydrated once from the URL present when this page mounts.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const [privateLinkCopied, setPrivateLinkCopied] = useState(false);
+  const [shareId, setShareId] = useState<string | null>(null);
+  const [reportToken, setReportToken] = useState<string | null>(null);
+  const [resultAxes, setResultAxes] = useState<number[]>([]);
+  const [resultQuizLength, setResultQuizLength] = useState(0);
+  const [checkoutBusy, setCheckoutBusy] = useState(false);
+  const [shareBusy, setShareBusy] = useState(false);
+  const [shareConsent, setShareConsent] = useState(false);
+  const [reportConsent, setReportConsent] = useState(false);
+  const [reportPending, setReportPending] = useState(false);
+  const ctaRef = useRef<HTMLElement>(null);
+  const [paid, setPaid] = useState(false);
+  const experimentVariant = "baseline";
+  const paidText = reportUi[locale];
 
   async function loadData() {
     if (data) return data;
@@ -185,6 +197,7 @@ export function TestApp({ locale }: { locale: Locale }) {
       setQuestionIndex(0);
       setResult(null);
       setMode("quiz");
+      trackEvent("quiz_start", { variant: experimentVariant, language: locale, device: deviceClass(), quiz_length: nextVariant === "short" ? 36 : nextVariant === "extended" ? 60 : 240 });
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch {
       setError(auxiliaryUi[locale].loadError);
@@ -229,16 +242,19 @@ export function TestApp({ locale }: { locale: Locale }) {
     });
   }
 
-  async function fetchResult(axes: number[]) {
+  async function fetchResult(axes: number[], length = questions.length, entryType = "quiz") {
     setMode("loading");
     setError("");
+    setResultAxes(axes);
+    setResultQuizLength(length);
     try {
       await loadData();
-      const response = await fetch(`/api/match?axes=${axes.join(",")}&lang=${locale}`);
+      const response = await fetch("/api/match", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ axes, locale }) });
       if (!response.ok) throw new Error();
       const payload = await response.json() as Result;
       setResult(payload);
       setMode("results");
+      trackEvent("result_preview_view", { variant: experimentVariant, language: locale, device: deviceClass(), quiz_length: length, entry_type: entryType });
     } catch {
       setError(auxiliaryUi[locale].resultError);
       setMode(questions.length ? "quiz" : "home");
@@ -253,10 +269,101 @@ export function TestApp({ locale }: { locale: Locale }) {
       return;
     }
     const axes = calculateAxes();
-    const query = shareKeys.map((key, index) => `${key}=${axes[index]}`).join("&");
-    window.history.replaceState(null, "", `${localePath(locale, "/results")}?${query}`);
+    trackEvent("quiz_complete", { variant: experimentVariant, language: locale, device: deviceClass(), quiz_length: questions.length });
     await fetchResult(axes);
   }
+
+  async function fetchSharedResult(id: string) {
+    setMode("loading");
+    try {
+      const response = await fetch("/api/share?id=" + encodeURIComponent(id));
+      if (!response.ok) throw new Error();
+      const payload = await response.json() as { axes: number[]; quizLength: number };
+      setShareId(id);
+      await fetchResult(payload.axes, payload.quizLength, "share");
+    } catch {
+      setError(auxiliaryUi[locale].resultError);
+      setMode("home");
+    }
+  }
+
+  async function fetchPaidReport(token: string, preview = false) {
+    setMode("loading");
+    setError("");
+    try {
+      const response = await fetch("/api/report", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ token, preview, locale }) });
+      const payload = await response.json() as { status: string; axes: number[]; result: Result; quizLength: number };
+      if (payload.status === "preview") {
+        setReportPending(false);
+        await fetchResult(payload.axes, payload.quizLength, "checkout_cancel");
+        return;
+      }
+      if (payload.status === "pending") { setReportPending(true); return; }
+      if (!response.ok || payload.status !== "paid") throw new Error();
+      await loadData();
+      setPaid(true);
+      setReportPending(false);
+      setResultAxes(payload.axes);
+      setResultQuizLength(payload.quizLength);
+      setResult(payload.result);
+      setMode("results");
+      trackEvent("full_report_view", { variant: experimentVariant, language: locale, device: deviceClass(), quiz_length: payload.quizLength });
+    } catch {
+      setReportPending(false);
+      setError(paidText.reportError);
+      setMode("home");
+    }
+  }
+
+  async function startCheckout() {
+    if (!result || checkoutBusy || !reportConsent) return;
+    setCheckoutBusy(true);
+    setError("");
+    trackEvent("checkout_start", { variant: experimentVariant, language: locale, device: deviceClass(), quiz_length: resultQuizLength });
+    try {
+      const response = await fetch("/api/checkout", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ axes: resultAxes, locale, variant: experimentVariant, quizLength: resultQuizLength, consent: reportConsent }) });
+      if (!response.ok) throw new Error();
+      const payload = await response.json() as { url: string };
+      window.location.href = payload.url;
+    } catch {
+      setError(paidText.checkoutError);
+      setCheckoutBusy(false);
+    }
+  }
+
+  useEffect(() => {
+    if (!window.location.pathname.endsWith("/results")) return;
+    const params = new URLSearchParams(window.location.search);
+    const shared = params.get("share");
+    const report = new URLSearchParams(window.location.hash.slice(1)).get("report");
+    const timeout = window.setTimeout(() => {
+      if (report) {
+        setReportToken(report);
+        void fetchPaidReport(report, params.has("cancelled"));
+      } else if (shared) {
+        void fetchSharedResult(shared);
+      } else if (params.has("est")) {
+        const axes = ["est", "rep", "pod", "imi", "dip", "int", "eco", "con", "com", "rel", "mor", "tec"].map((key) => Number(params.get(key)));
+        window.history.replaceState(null, "", localePath(locale, "/results"));
+        if (axes.every((value) => Number.isFinite(value) && value >= 0 && value <= 100)) void fetchResult(axes, 0, "legacy_share");
+      }
+    }, 0);
+    return () => window.clearTimeout(timeout);
+    // Initial URL hydration only; subsequent quiz actions manage their own state.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (mode !== "results" || paid || !ctaRef.current) return;
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) {
+        trackEvent("paywall_view", { variant: experimentVariant, language: locale, device: deviceClass(), quiz_length: resultQuizLength });
+        observer.disconnect();
+      }
+    }, { threshold: 0.5 });
+    observer.observe(ctaRef.current);
+    return () => observer.disconnect();
+  }, [mode, paid, locale, resultQuizLength]);
 
   function reset() {
     window.history.replaceState(null, "", localePath(locale));
@@ -265,19 +372,41 @@ export function TestApp({ locale }: { locale: Locale }) {
     setAnswers({});
     setQuestionIndex(0);
     setResult(null);
+    setResultAxes([]);
+    setPaid(false);
+    setReportToken(null);
+    setReportPending(false);
+    setShareId(null);
+    setReportConsent(false);
+    setShareConsent(false);
     setError("");
   }
 
   async function shareResult() {
-    await navigator.clipboard.writeText(window.location.href);
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1800);
+    if (shareBusy || !shareConsent) return;
+    setShareBusy(true);
+    setError("");
+    try {
+      let id = shareId;
+      if (!id) {
+        const response = await fetch("/api/share", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ axes: resultAxes, locale, variant: experimentVariant, quizLength: resultQuizLength, consent: true }) });
+        if (!response.ok) throw new Error();
+        id = (await response.json() as { id: string }).id;
+        setShareId(id);
+      }
+      const url = new URL(localePath(locale, "/results") + "?share=" + encodeURIComponent(id), window.location.origin).toString();
+      await navigator.clipboard.writeText(url);
+      trackEvent("share_result", { variant: experimentVariant, language: locale, device: deviceClass(), quiz_length: resultQuizLength });
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1800);
+    } catch { setError(paidText.shareError); }
+    finally { setShareBusy(false); }
   }
 
   function switchLocale(next: string) {
     if (!locales.includes(next as Locale)) return;
     const currentPath = window.location.pathname.replace(/^\/(pt|es|ru|zh)(?=\/|$)/, "") || "/";
-    window.location.href = localePath(next as Locale, currentPath);
+    window.location.href = localePath(next as Locale, currentPath) + window.location.search + window.location.hash;
   }
 
   const currentQuestion = questions[questionIndex];
@@ -304,7 +433,6 @@ export function TestApp({ locale }: { locale: Locale }) {
             ))}
           </div>
         </section>
-        <AdsterraAdBlock locale={locale} placement="format" />
       </main>
     );
   }
@@ -314,7 +442,9 @@ export function TestApp({ locale }: { locale: Locale }) {
       <main className="center-shell loading-shell">
         <div className="loading-mark"><span /></div>
         <h1>12 Axes</h1>
-        <p>{text.loading}</p>
+        <p>{reportPending ? paidText.pending : text.loading}</p>
+        {reportPending && reportToken && <button className="primary-button" onClick={() => fetchPaidReport(reportToken)}>{paidText.retry}</button>}
+        {reportPending && <ReportRecovery locale={locale} />}
       </main>
     );
   }
@@ -354,7 +484,6 @@ export function TestApp({ locale }: { locale: Locale }) {
             : <button className="primary-button" disabled={!answers[currentQuestion.id]} onClick={() => variant === "short" && questions.length === 36 ? setMode("extend") : finish()}>{text.seeResult} →</button>}
         </nav>
         {error && <p className="inline-error" role="alert">{error}</p>}
-        <AdsterraAdBlock locale={locale} placement="quiz" />
       </main>
     );
   }
@@ -372,7 +501,6 @@ export function TestApp({ locale }: { locale: Locale }) {
           </div>
         </section>
         <button className="secondary-button back-alone" onClick={() => { setMode("quiz"); setQuestionIndex(questions.length - 1); }}>← {text.back}</button>
-        <AdsterraAdBlock locale={locale} placement="extend" />
       </main>
     );
   }
@@ -388,20 +516,40 @@ export function TestApp({ locale }: { locale: Locale }) {
           {auxiliaryUi[locale].fallbackNote && <p className="result-note">{auxiliaryUi[locale].fallbackNote}</p>}
         </section>
         <ResultMatch match={result.topMatch} label={text.topMatch} locale={locale} large />
-        <AdsterraAdBlock locale={locale} placement="results" />
+        <section className="paid-report-cta" ref={ctaRef}>
+          <h2>{paid ? paidText.unlocked : paidText.title}</h2>
+          <p>{paidText.body}</p>
+          {paid ? <div className="result-actions">
+            <button className="primary-button" onClick={() => window.print()}>{paidText.pdf}</button>
+            <button className="secondary-button" onClick={async () => {
+              try {
+                await navigator.clipboard.writeText(window.location.origin + localePath(locale, "/results") + "?paid=1#report=" + reportToken);
+                setPrivateLinkCopied(true);
+                window.setTimeout(() => setPrivateLinkCopied(false), 1800);
+              } catch { setError(paidText.shareError); }
+            }}>{privateLinkCopied ? text.copied : privateLinkLabel[locale]}</button>
+          </div> : <>
+            <label className="consent-label"><input type="checkbox" checked={reportConsent} onChange={(event) => setReportConsent(event.target.checked)} />{paidText.consent}</label>
+            <button className="primary-button" disabled={!reportConsent || checkoutBusy} onClick={startCheckout}>{checkoutBusy ? paidText.wait : paidText.button}</button>
+            <p className="billing-note">{paidText.currency}</p>
+            {locale === "pt" && <BrlEstimate />}
+            <div className="billing-links"><a href={localePath(locale, "/pricing")}>{paidText.pricing}</a><a href={localePath(locale, "/refund")}>{paidText.refund}</a><a href={localePath(locale, "/privacy")}>{paidText.privacy}</a></div>
+          </>}
+        </section>
         <section className="axis-results" aria-label="12 axes">
-          {result.axes.map((axis) => {
+          {result.axes.map((axis, index) => {
             const localizedAxis = data?.axes.find((item) => item.id === axis.axisId);
             return <article className="axis-result" key={axis.axisId}>
               <header><h2>{localizedAxis?.label ?? axis.label}</h2><span>{axis.intensity} · {axis.dominantPole}</span></header>
               <div className="axis-labels"><b>{localizedAxis?.leftPole ?? axis.leftPole} {Math.round(axis.leftPercent)}%</b><b>{Math.round(axis.rightPercent)}% {localizedAxis?.rightPole ?? axis.rightPole}</b></div>
               <div className="axis-bar"><span style={{ width: `${axis.leftPercent}%` }} /><i style={{ left: `${axis.leftPercent}%` }} /></div>
+              {paid && <p className="axis-interpretation">{axisReading(locale, index, axis.leftPercent, localizedAxis?.leftPole ?? axis.leftPole, localizedAxis?.rightPole ?? axis.rightPole)}</p>}
             </article>;
           })}
         </section>
         <section className="result-section">
           <div className="section-heading"><span className="eyebrow">{text.otherMatches}</span><h2>{text.otherMatches}</h2></div>
-          <div className="match-grid">{result.matches.slice(1, 4).map((match) => <ResultMatch match={match} locale={locale} key={match.ideologyId} />)}</div>
+          <div className="match-grid">{result.matches.slice(1, paid ? 10 : 4).map((match) => <ResultMatch match={match} locale={locale} key={match.ideologyId} />)}</div>
         </section>
         <section className="entity-card">
           <div className="entity-image">◎</div>
@@ -413,10 +561,14 @@ export function TestApp({ locale }: { locale: Locale }) {
           <div><span className="eyebrow">{text.personality}</span><h2>{result.topPersonalityMatch.name}</h2><p className="entity-tags">{result.topPersonalityMatch.role} {result.topPersonalityMatch.lifespan}</p><p>{result.topPersonalityMatch.description}</p></div>
           <strong>{Math.round(result.topPersonalityMatch.compatibility)}% {auxiliaryUi[locale].match}</strong>
         </section>
+        <label className="consent-label result-consent"><input type="checkbox" checked={shareConsent} onChange={(event) => setShareConsent(event.target.checked)} />{paidText.shareConsent}</label>
         <div className="result-actions">
           <button className="secondary-button" onClick={reset}>{text.retake}</button>
-          <button className="primary-button" onClick={shareResult}>{copied ? text.copied : text.share} ↗</button>
+          <button className="primary-button" disabled={shareBusy || !shareConsent} onClick={shareResult}>{copied ? text.copied : text.share} ↗</button>
         </div>
+        {error && <p className="inline-error" role="alert">{error}</p>}
+        <ReportRecovery locale={locale} />
+        <Footer locale={locale} />
       </main>
     );
   }
@@ -437,7 +589,6 @@ export function TestApp({ locale }: { locale: Locale }) {
         </div>
         <ExampleCard locale={locale} />
       </section>
-      <AdsterraAdBlock locale={locale} placement="home" />
       <section className="section-block">
         <span className="eyebrow">{text.discoverEyebrow}</span>
         <h2>{text.discoverTitle}</h2>
@@ -475,6 +626,7 @@ export function TestApp({ locale }: { locale: Locale }) {
         <div className="privacy-pill">⌁ {auxiliaryUi[locale].privacy}</div>
       </section>
       <Footer locale={locale} />
+      {reportToken && <ReportRecovery locale={locale} />}
       {error && <p className="inline-error floating-error" role="alert">{error}</p>}
     </main>
   );
@@ -532,7 +684,7 @@ function Footer({ locale }: { locale: Locale }) {
     <footer>
       <a className="logo" href={localePath(locale)}><b>12</b><span>axes</span></a>
       <p>{copy[locale].footer}</p>
-      <nav><a href={localePath(locale, "/vercel-app")}>12axes Vercel app</a><a href={localePath(locale, "/results")}>{results}</a><a href={localePath(locale, "/ideologies")}>{ideologies}</a><a href={localePath(locale, "/12axes-vs-9axes")}>12Axes vs 9Axes</a><a href={localePath(locale, "/12axes-vs-8values")}>12Axes vs 8values</a><a href={localePath(locale, "/privacy")}>{privacy}</a><a href={localePath(locale, "/license")}>{license}</a><a href={publicContactUrl}>{contactLabels[locale]}</a>{locales.map((item) => <a href={localePath(item)} aria-current={item === locale ? "page" : undefined} key={item}>{localeNames[item]}</a>)}</nav>
+      <nav><a href={localePath(locale, "/vercel-app")}>12axes Vercel app</a><a href={localePath(locale, "/results")}>{results}</a><a href={localePath(locale, "/ideologies")}>{ideologies}</a><a href={localePath(locale, "/12axes-vs-9axes")}>12Axes vs 9Axes</a><a href={localePath(locale, "/12axes-vs-8values")}>12Axes vs 8values</a><a href={localePath(locale, "/privacy")}>{privacy}</a><a href={localePath(locale, "/license")}>{license}</a><a href={publicContactUrl}>{contactLabels[locale]}</a>{commerceSlugs.filter((item) => item !== "privacy").map((item) => <a key={item} href={localePath(locale, "/" + item)}>{commerceLabels[locale][item]}</a>)}{locales.map((item) => <a href={localePath(item)} aria-current={item === locale ? "page" : undefined} key={item}>{localeNames[item]}</a>)}</nav>
     </footer>
   );
 }

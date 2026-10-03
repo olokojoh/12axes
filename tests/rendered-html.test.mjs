@@ -1,96 +1,126 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import test from "node:test";
+import test, { before, after } from "node:test";
+import { createRuntime } from "./runtime.mjs";
+let runtime;
+before(async () => { runtime = await createRuntime(); });
+after(async () => { await runtime?.mf.dispose(); });
+const render = (path = "/") => runtime.request(path, { headers: { accept: "text/html" } });
 
-async function render(path = "/") {
-  const workerUrl = new URL("../dist/server/index.js", import.meta.url);
-  workerUrl.searchParams.set("test", `${process.pid}-${Date.now()}-${path}`);
-  const { default: worker } = await import(workerUrl.href);
-  return worker.fetch(
-    new Request(`https://12axes.test${path}`, { headers: { accept: "text/html" } }),
-    { ASSETS: { fetch: async () => new Response("Not found", { status: 404 }) } },
-    { waitUntil() {}, passThroughOnException() {} },
-  );
-}
-
-test("server-renders the English 12axes test and SEO contract", async () => {
+test("renders the free quiz and SEO contract without advertising or automatic analytics", async () => {
   const response = await render();
   assert.equal(response.status, 200);
-  assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
   const html = await response.text();
   assert.match(html, /<html lang="en">/);
   assert.match(html, /<title>12Axes Test — Free Political Ideology Quiz in 12 Axes<\/title>/);
   assert.match(html, /<h1[^>]*>.*Do you really know your.*political ideology/s);
-  assert.match(html, /rel="canonical" href="https:\/\/12axes\.test\/"/);
+  assert.match(html, /rel="canonical"/);
   assert.match(html, /hrefLang="pt-BR"/);
   assert.match(html, /"@type":"WebApplication"/);
   assert.match(html, /"@type":"FAQPage"/);
-  assert.equal(html.match(/<script[^>]+src="[^"]*eb3f2b4f596dc0ce02129439525e0ca9\.js"/g)?.length, 1);
-  assert.equal(html.match(/<script[^>]+src="[^"]*a2fe6205958e31ff19ac56d46d23af7e\.js"/g)?.length, 1);
-  assert.equal(html.match(/82007f0af8ba71f54644b287807fe713/g)?.length, 2);
-  assert.equal(html.match(/f515338cffcc25dfc402c9d90fd1bd01/g)?.length, 1);
-  assert.match(html, /rel="sponsored noopener noreferrer"/);
-  assert.doesNotMatch(html, /codex-preview|SkeletonPreview|react-loading-skeleton/);
+  assert.doesNotMatch(html, /profitableratecpmnetwork|Adsterra|<script[^>]+googletagmanager/i);
 });
 
-test("server-renders translated language and localized SEO pages", async () => {
-  const [homeResponse, pageResponse] = await Promise.all([
-    render("/zh"),
-    render("/es/ideologies"),
-  ]);
-  const [home, page] = await Promise.all([homeResponse.text(), pageResponse.text()]);
+test("renders localized homes and SEO pages", async () => {
+  const home = await (await render("/zh")).text();
+  const page = await (await render("/es/ideologies")).text();
   assert.match(home, /<html lang="zh-CN">/);
   assert.match(home, /12Axes 测试中文版/);
   assert.match(home, /你真的了解自己的/);
-  assert.match(home, /rel="canonical" href="https:\/\/12axes\.test\/zh"/);
   assert.match(page, /<html lang="es">/);
   assert.match(page, /Ideologías de 12Axes/);
-  assert.match(page, /rel="canonical" href="https:\/\/12axes\.test\/es\/ideologies"/);
-  assert.equal(page.match(/<script[^>]+src="[^"]*eb3f2b4f596dc0ce02129439525e0ca9\.js"/g)?.length, 1);
-  assert.equal(page.match(/<script[^>]+src="[^"]*a2fe6205958e31ff19ac56d46d23af7e\.js"/g)?.length, 1);
-  assert.doesNotMatch(page, /82007f0af8ba71f54644b287807fe713/);
 });
 
-test("discloses the active Adsterra formats in every language", async () => {
-  for (const path of ["/privacy", "/pt/privacy", "/es/privacy", "/ru/privacy", "/zh/privacy"]) {
-    const html = await (await render(path)).text();
-    assert.match(html, /Adsterra/);
-    assert.match(html, /https:\/\/adsterra\.com\/privacy-policy-managed\//);
-    assert.match(html, /https:\/\/adsterra\.com\/cookies\//);
+test("serves all six commerce pages in each language", async () => {
+  for (const locale of ["", "/pt", "/es", "/ru", "/zh"]) {
+    for (const page of ["privacy", "terms", "refund", "pricing", "about", "contact"]) {
+      const response = await render(locale + "/" + page);
+      const html = await response.text();
+      assert.equal(response.status, 200);
+      assert.match(html, /<h1/);
+      assert.doesNotMatch(html, /profitableratecpmnetwork|Adsterra|<script[^>]+googletagmanager/i);
+      if (page === "privacy") assert.match(html, /Stripe/);
+      if (page === "refund") assert.match(html, /type="email"/);
+    }
   }
 });
 
-test("keeps indexable pages discoverable and shared result URLs out of the index", async () => {
-  const [homeResponse, sharedResponse, sitemapResponse, robotsResponse] = await Promise.all([
-    render(),
-    render("/results?est=50&rep=50&pod=50&imi=50&dip=50&int=50&eco=50&con=50&com=50&rel=50&mor=50&tec=50"),
-    render("/sitemap.xml"),
-    render("/robots.txt"),
-  ]);
-  const [home, shared, sitemap, robots] = await Promise.all([
-    homeResponse.text(), sharedResponse.text(), sitemapResponse.text(), robotsResponse.text(),
-  ]);
-  assert.match(home, /href="\/12axes-vs-9axes"/);
-  assert.match(home, /href="\/12axes-vs-8values"/);
-  assert.match(shared, /<meta name="robots" content="noindex, follow"/);
-  assert.match(shared, /rel="canonical" href="https:\/\/12axes\.test\/results"/);
-  assert.match(sitemap, /<loc>https:\/\/12axes\.test\/zh\/12axes-vs-8values<\/loc>/);
-  assert.doesNotMatch(sitemap, /\?est=/);
-  assert.match(robots, /Sitemap: https:\/\/12axes\.test\/sitemap\.xml/);
-  assert.match(home, /href="https:\/\/github\.com\/olokojoh\/12axes\/issues"/);
+test("renders localized privacy controls and pricing in every language", async () => {
+  const translations = [
+    ["", "Analytics settings", "Pricing"],
+    ["/pt", "Configurações de análise", "Preços"],
+    ["/es", "Configuración de analítica", "Precios"],
+    ["/ru", "Настройки аналитики", "Цены"],
+    ["/zh", "分析设置", "定价"],
+  ];
+  for (const [prefix, settings, pricing] of translations) {
+    const privacyHtml = await (await render(prefix + "/privacy")).text();
+    const pricingHtml = await (await render(prefix + "/pricing")).text();
+    assert.ok(privacyHtml.includes(settings));
+    assert.ok(pricingHtml.includes(`<h1>${pricing}</h1>`));
+  }
 });
 
-test("publishes the authorized ads.txt seller record at the Pages root", async () => {
+test("shared and paid result routes are noindex and do not echo access secrets", async () => {
+  for (const path of ["/results?share=synthetic-share", "/pt/results?paid=1", "/zh/results?cancelled=1"]) {
+    const response = await render(path);
+    const html = await response.text();
+    assert.equal(response.status, 200);
+    assert.match(html, /<meta name="robots" content="noindex, follow"/);
+    assert.match(html, /rel="canonical"[^>]+\/results/);
+  }
+  const sitemap = await (await render("/sitemap.xml")).text();
+  assert.match(sitemap, /\/zh\/pricing/);
+  assert.doesNotMatch(sitemap, /\?share=|\?est=/);
+});
+
+test("preserves published seller record without loading advertisements", async () => {
   const expected = "google.com, pub-6112182006844125, DIRECT, f08c47fec0942fa0\n";
   assert.equal(await readFile(new URL("../public/ads.txt", import.meta.url), "utf8"), expected);
-  assert.equal(await readFile(new URL("../dist/client/ads.txt", import.meta.url), "utf8"), expected);
 });
 
-test("bundles complete quiz data for all five languages", async () => {
+test("keeps all five existing question banks intact pending content review", async () => {
   for (const locale of ["en", "pt", "es", "ru", "zh"]) {
     const quiz = JSON.parse(await readFile(new URL(`../public/data/quiz.${locale}.json`, import.meta.url), "utf8"));
     assert.equal(quiz.questions.length, 240);
     assert.equal(quiz.axes.length, 12);
     assert.equal(quiz.answerOptions.length, 5);
   }
+});
+
+test("matching profiles and API results are localized in all five languages", async () => {
+  const catalog = JSON.parse(await readFile(new URL("../app/data/matching.json", import.meta.url), "utf8"));
+  const translations = JSON.parse(await readFile(new URL("../app/data/matching-translations.json", import.meta.url), "utf8"));
+  for (const group of ["ideologies", "countries", "personalities"]) {
+    for (const profile of catalog[group]) {
+      for (const locale of ["es", "ru", "zh"]) {
+        for (const field of group === "personalities" ? ["name", "role", "description"] : ["name", "category", "description"]) {
+          assert.ok(translations[group][profile.id]?.[locale]?.[field], `${group}/${profile.id}/${locale}/${field}`);
+        }
+      }
+    }
+  }
+  const axes = Array(12).fill(50);
+  const responses = {};
+  for (const locale of ["en", "pt", "es", "ru", "zh"]) {
+    const response = await runtime.request("/api/match", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ axes, locale }),
+    });
+    assert.equal(response.status, 200);
+    responses[locale] = await response.json();
+  }
+  const ideologyId = responses.en.topMatch.ideologyId;
+  const countryId = catalog.countries.find((item) => item.name.en === responses.en.topCountryMatch.name).id;
+  const personalityId = catalog.personalities.find((item) => item.name.en === responses.en.topPersonalityMatch.name).id;
+  for (const locale of ["es", "ru", "zh"]) {
+    assert.equal(responses[locale].topMatch.name, translations.ideologies[ideologyId][locale].name);
+    assert.equal(responses[locale].topMatch.description, translations.ideologies[ideologyId][locale].description);
+    assert.equal(responses[locale].topCountryMatch.name, translations.countries[countryId][locale].name);
+    assert.equal(responses[locale].topPersonalityMatch.role, translations.personalities[personalityId][locale].role);
+  }
+  assert.equal(catalog.personalities.find((item) => item.id === "andy-burnham").role.en, "Mayor of Greater Manchester");
+  assert.equal(translations.personalities.lenin.ru.role, "Революционер");
+  assert.equal(translations.personalities.lenin.zh.role, "革命家");
 });

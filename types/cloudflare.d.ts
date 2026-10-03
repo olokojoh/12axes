@@ -1,21 +1,15 @@
-// Minimal ambient declarations for the Cloudflare Worker runtime so that a
-// standalone `tsc --noEmit` succeeds; the vinext build injects the real
-// runtime types. Replace with `@cloudflare/workers-types` once dependency
-// changes are on the table.
-
-declare module "cloudflare:workers" {
-  export const env: {
-    DB?: D1Database;
-    [binding: string]: unknown;
-  };
-}
-
-declare interface Fetcher {
-  fetch(input: Request | string | URL, init?: RequestInit): Promise<Response>;
-}
-
-declare interface D1Database {
-  prepare(query: string): unknown;
-  batch(statements: unknown[]): Promise<unknown[]>;
-  exec(query: string): Promise<unknown>;
+declare namespace Cloudflare {
+  interface Env {
+    STRIPE_SECRET_KEY?: string;
+    STRIPE_PRICE_ID?: string;
+    STRIPE_PRICE_ID_PT?: string;
+    STRIPE_PRICE_ID_ES?: string;
+    STRIPE_PRICE_ID_RU?: string;
+    STRIPE_PRICE_ID_ZH?: string;
+    STRIPE_WEBHOOK_SECRET?: string;
+    REPORT_ENCRYPTION_KEY?: string;
+    PUBLIC_BASE_URL?: string;
+    REPORT_FROM_EMAIL?: string;
+    RESEND_API_KEY?: string;
+  }
 }
