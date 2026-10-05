@@ -5,10 +5,10 @@ import { resolve, extname } from "node:path";
 import { build } from "esbuild";
 
 export const testSecret = "synthetic-test-encryption-secret-only";
-export async function createRuntime() {
+export async function createRuntime(options = {}) {
   const root = fileURLToPath(new URL("../", import.meta.url));
   await mkdir(root + "output/tests", { recursive: true });
-  const output = root + "output/tests/runtime-" + process.pid + ".mjs";
+  const output = root + "output/tests/runtime-" + process.pid + "-" + crypto.randomUUID() + ".mjs";
   await build({ stdin: { contents: `import worker from "./dist/client/_worker.js";
     export default { async fetch(request, env, ctx) {
       const path = new URL(request.url).pathname;
@@ -24,7 +24,8 @@ export async function createRuntime() {
     modules: true, scriptPath: output,
     compatibilityDate: "2026-05-15", compatibilityFlags: ["nodejs_compat"],
     d1Databases: ["DB"],
-    bindings: { REPORT_ENCRYPTION_KEY: testSecret, STRIPE_WEBHOOK_SECRET: "whsec_test_fixture", RESEND_API_KEY: "synthetic-not-a-real-key" },
+    bindings: { REPORT_ENCRYPTION_KEY: testSecret, STRIPE_WEBHOOK_SECRET: "whsec_test_fixture", RESEND_API_KEY: "synthetic-not-a-real-key", ...options.bindings },
+    outboundService: options.outboundService,
     queueProducers: { REPORT_EMAIL_QUEUE: "test-report-email" },
     queueConsumers: { "test-report-email": { maxBatchTimeout: 0 } },
     serviceBindings: { ASSETS: async (request) => {
@@ -44,7 +45,7 @@ export async function createRuntime() {
     if (!response.ok) throw new Error(await response.text());
     return response.json();
   }])); }, run() { return this.bind().run(); } }; } };
-  for (const migration of ["0001_billing.sql", "0002_support.sql", "0003_refunds.sql"]) {
+  for (const migration of ["0001_billing.sql", "0002_support.sql", "0003_refunds.sql", "0004_report_plus.sql"]) {
     const sql = await readFile(new URL("../migrations/" + migration, import.meta.url), "utf8");
     for (const statement of sql.split(";").filter((part) => part.trim())) await db.prepare(statement).run();
   }

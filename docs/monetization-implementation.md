@@ -2,7 +2,7 @@
 
 ## 当前状态
 
-正式站：https://12axes.net ，对应 Cloudflare Pages 的 GitHub `main` 分支。沙盒预览：https://payments.12axes-1dg.pages.dev ，使用 `payments` 预览分支。全部支付验收使用 Stripe 沙盒，不使用 Link，不进行真实扣款。正式站使用生产收款配置；预览继续使用测试密钥、价格与 webhook。
+正式站：https://12axes.net ，对应 Cloudflare Pages 的 GitHub `main` 分支。沙盒预览：https://dev.12axes-1dg.pages.dev ，使用 `dev` 预览分支。全部支付验收使用 Stripe 沙盒，不使用 Link，不进行真实扣款。正式站使用生产收款配置；预览继续使用测试密钥、价格与 webhook。
 
 用户明确批准 Cloudflare D1 保存加密结果，要求跳过内容授权核查，保留既有免费结果，以 US$4.99 一次性报告变现。未做真实付款；测试卡产生的订单不能算真实收入。
 

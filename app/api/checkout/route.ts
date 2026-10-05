@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import { reportAccess } from "../../lib/report-access";
 import { encryptPayload, hashToken, randomToken } from "../../lib/secure-payload";
 import { runtimeEnv } from "../../lib/runtime-env";
-import { privateHeaders, validResult } from "../../lib/billing-input";
+import { privateHeaders, validResult, type ResultInput } from "../../lib/billing-input";
 import { matchResult } from "../../lib/matching";
 
 const checkoutTerms = {
@@ -13,18 +14,35 @@ const checkoutTerms = {
 };
 
 export async function POST(request: NextRequest) {
-  const body = await request.json().catch(() => null);
+  const input = await request.json().catch(() => null);
+  const body = input as ResultInput & { consent?: boolean; plan?: string; upgradeToken?: string };
   if (!validResult(body) || (body as typeof body & { consent?: boolean }).consent !== true) return NextResponse.json({ error: "Invalid request or missing report consent" }, { status: 400 });
   const { STRIPE_SECRET_KEY: secret, REPORT_ENCRYPTION_KEY: encryptionKey, DB: db } = runtimeEnv;
-  const price = {
-    en: runtimeEnv.STRIPE_PRICE_ID,
-    pt: runtimeEnv.STRIPE_PRICE_ID_PT,
-    es: runtimeEnv.STRIPE_PRICE_ID_ES,
-    ru: runtimeEnv.STRIPE_PRICE_ID_RU,
-    zh: runtimeEnv.STRIPE_PRICE_ID_ZH,
-  }[body.locale];
+  const plan = body.plan ?? "basic";
+  if (!["basic", "plus"].includes(plan) || (body.upgradeToken !== undefined && (typeof body.upgradeToken !== "string" || plan !== "plus"))) return NextResponse.json({ error: "Invalid plan" }, { status: 400, headers: privateHeaders });
+  const prefixKey = body.upgradeToken ? "STRIPE_UPGRADE_PRICE_ID" : plan === "plus" ? "STRIPE_PLUS_PRICE_ID" : "STRIPE_PRICE_ID";
+  const priceKey = prefixKey + (body.locale === "en" ? "" : "_" + body.locale.toUpperCase());
+  const price = (runtimeEnv as unknown as Record<string, string>)[priceKey];
   if (!secret || !price || !encryptionKey || !db || !runtimeEnv.REPORT_EMAIL_QUEUE) {
     return NextResponse.json({ error: "Checkout is not available yet" }, { status: 503, headers: privateHeaders });
+  }
+  let parentOrderId: string | null = null;
+  if (body.upgradeToken) {
+    const access = await reportAccess(db, body.upgradeToken, encryptionKey);
+    const sessionPrefix = /^(sk|rk)_test_/.test(secret) ? "cs_test_" : "cs_live_";
+    if (!access || access.plan !== "basic" || !access.root.checkout_session_id?.startsWith(sessionPrefix)) return NextResponse.json({ error: "A paid basic report in this environment is required" }, { status: 409, headers: privateHeaders });
+    parentOrderId = access.root.id;
+    body.axes = access.axes;
+    body.quizLength = access.root.quiz_length;
+    const existing = await db.prepare("SELECT id, checkout_session_id FROM orders WHERE parent_order_id = ? AND status = 'pending'").bind(parentOrderId).first<{ id: string; checkout_session_id: string | null }>();
+    if (existing) {
+      if (!existing.checkout_session_id) return NextResponse.json({ error: "Upgrade is being prepared" }, { status: 409, headers: privateHeaders });
+      const response = await fetch("https://api.stripe.com/v1/checkout/sessions/" + existing.checkout_session_id, { headers: { authorization: "Bearer " + secret } });
+      const session = await response.json() as { status?: string; url?: string };
+      if (response.ok && session.status === "open" && session.url) return NextResponse.json({ url: session.url }, { headers: privateHeaders });
+      if (!response.ok || session.status !== "expired") return NextResponse.json({ error: "Payment confirmation pending" }, { status: 409, headers: privateHeaders });
+      await db.prepare("UPDATE orders SET status = 'failed' WHERE id = ? AND status = 'pending'").bind(existing.id).run();
+    }
   }
   const result = matchResult(body.axes, body.locale);
 
@@ -33,17 +51,25 @@ export async function POST(request: NextRequest) {
   const now = Math.floor(Date.now() / 1000);
   const payload = await encryptPayload({ axes: body.axes, result, quizLength: body.quizLength }, encryptionKey);
   const tokenPayload = await encryptPayload({ token }, encryptionKey);
-  await db.prepare("INSERT INTO orders (id, token_hash, token_payload, status, payload, locale, variant, quiz_length, created_at, updated_at) VALUES (?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?)")
-    .bind(orderId, await hashToken(token), tokenPayload, payload, body.locale, body.variant, body.quizLength, now, now).run();
-  const base = runtimeEnv.PUBLIC_BASE_URL ?? new URL(request.url).origin;
+  const base = runtimeEnv.PUBLIC_BASE_URL;
+  if (!base || !["https://12axes.net", "https://dev.12axes-1dg.pages.dev"].includes(base)) return NextResponse.json({ error: "Checkout is not configured" }, { status: 503, headers: privateHeaders });
+  const amount = parentOrderId ? 500 : plan === "plus" ? 999 : 499;
+  try {
+    await db.prepare("INSERT INTO orders (id, token_hash, token_payload, status, payload, locale, variant, quiz_length, created_at, updated_at, plan, parent_order_id, expected_amount, delivery_base_url) VALUES (?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+      .bind(orderId, await hashToken(token), tokenPayload, payload, body.locale, body.variant, body.quizLength, now, now, plan, parentOrderId, amount, base).run();
+  } catch (error) {
+    if (parentOrderId && String(error).includes("UNIQUE constraint")) return NextResponse.json({ error: "Checkout is already being prepared. Please retry." }, { status: 409, headers: privateHeaders });
+    throw error;
+  }
   const prefix = body.locale === "en" ? "" : "/" + body.locale;
   const path = prefix + "/results";
   const terms = checkoutTerms[body.locale].replace("{terms}", base + prefix + "/terms").replace("{refund}", base + prefix + "/refund");
   const params = new URLSearchParams({
     mode: "payment",
+    "adaptive_pricing[enabled]": "false",
     locale: body.locale,
-    success_url: base + path + "?paid=1#report=" + token,
-    cancel_url: base + path + "?cancelled=1#report=" + token,
+    success_url: base + path + "?paid=1#report=" + (body.upgradeToken || token),
+    cancel_url: base + path + "?cancelled=1#report=" + (body.upgradeToken || token),
     "line_items[0][price]": price,
     "line_items[0][quantity]": "1",
     "payment_method_types[0]": "card",
@@ -58,8 +84,12 @@ export async function POST(request: NextRequest) {
     const response = await fetch("https://api.stripe.com/v1/checkout/sessions", {
       method: "POST", headers: { authorization: "Bearer " + secret, "content-type": "application/x-www-form-urlencoded", "idempotency-key": "checkout/" + orderId }, body: params,
     });
-    const session = await response.json() as { id?: string; url?: string };
+    const session = await response.json() as { id?: string; url?: string; amount_total?: number; currency?: string; livemode?: boolean };
     if (!response.ok || !session.id || !session.url) throw new Error("Checkout unavailable");
+    if (session.amount_total !== amount || session.currency !== "usd" || session.livemode !== /^(sk|rk)_live_/.test(secret)) {
+      await fetch("https://api.stripe.com/v1/checkout/sessions/" + session.id + "/expire", { method: "POST", headers: { authorization: "Bearer " + secret } });
+      throw new Error("Checkout price configuration mismatch");
+    }
     await db.prepare("UPDATE orders SET checkout_session_id = ?, updated_at = ? WHERE id = ?").bind(session.id, now, orderId).run();
     return NextResponse.json({ url: session.url }, { headers: privateHeaders });
   } catch {

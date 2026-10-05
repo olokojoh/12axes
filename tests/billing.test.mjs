@@ -231,3 +231,57 @@ test("local matching returns complete localized results and validates inputs", a
     assert.ok(matched.matches.every((item, i, all) => item.compatibility >= 0 && item.compatibility <= 100 && (!i || item.compatibility <= all[i - 1].compatibility)));
   }
 });
+
+test("delivery and recovery emails use each order's saved origin and language", async () => {
+  const originalFetch = globalThis.fetch;
+  const requests = [];
+  globalThis.fetch = async (url, init) => {
+    if (url === "https://api.resend.com/emails") { requests.push(JSON.parse(init.body)); return new Response("{}", { status: 200 }); }
+    return originalFetch(url, init);
+  };
+  try {
+    for (const locale of ["en", "pt", "es", "ru", "zh"]) {
+      const item = await order("paid");
+      await runtime.db.prepare("UPDATE orders SET locale = ?, delivery_base_url = 'https://dev.12axes.test' WHERE id = ?").bind(locale, item.id).run();
+      const env = { DB: runtime.db, REPORT_ENCRYPTION_KEY: testSecret, RESEND_API_KEY: "synthetic", REPORT_FROM_EMAIL: "report@example.test", PUBLIC_BASE_URL: "https://production.12axes.test" };
+      for (const kind of ["paid", "recover"]) {
+        await emailWorker.queue({ messages: [{ body: { orderId: item.id, deliveryId: kind + "/" + item.id }, ack() {}, retry() { assert.fail("Email should not retry"); } }] }, env);
+        const mail = requests.at(-1);
+        assert.ok(mail.text.includes("https://dev.12axes.test" + (locale === "en" ? "" : "/" + locale) + "/results?paid=1#report=" + item.token));
+        assert.ok(!mail.text.includes("production.12axes.test"));
+      }
+    }
+    assert.equal(requests.length, 10);
+  } finally { globalThis.fetch = originalFetch; }
+});
+
+
+test("legacy basic orders retain their complete report and production delivery origin", async () => {
+  const item = await order("paid");
+  const saved = await getOrder(item.id);
+  assert.equal(saved.plan, "basic"); assert.equal(saved.expected_amount, 499);
+  assert.equal(saved.delivery_base_url, "https://12axes.net");
+  const report = await (await post("/api/report", { token: item.token })).json();
+  assert.equal(report.plan, "basic"); assert.equal(report.result.matches.length, 10);
+  assert.equal(report.result.axes.length, 12); assert.equal(report.plus, null);
+});
+
+test("upgrade delivery uses the original lasting link and stops if the original order is revoked", async () => {
+  const parent = await order("paid"), child = await order("paid");
+  await runtime.db.prepare("UPDATE orders SET parent_order_id = ?, plan = 'plus' WHERE id = ?").bind(parent.id, child.id).run();
+  const originalFetch = globalThis.fetch, sent = [];
+  globalThis.fetch = async (url, init) => {
+    if (url === "https://api.resend.com/emails") { sent.push(JSON.parse(init.body)); return new Response("{}", { status: 200 }); }
+    return originalFetch(url, init);
+  };
+  const env = { DB: runtime.db, REPORT_ENCRYPTION_KEY: testSecret, RESEND_API_KEY: "synthetic", REPORT_FROM_EMAIL: "report@example.test" };
+  const job = (kind) => ({ body: { orderId: child.id, deliveryId: kind + "/" + child.id }, ack() {}, retry() { assert.fail("Unexpected retry"); } });
+  try {
+    await emailWorker.queue({ messages: [job("paid")] }, env);
+    assert.equal(sent.length, 1); assert.ok(sent[0].text.includes("#report=" + parent.token));
+    assert.ok(!sent[0].text.includes(child.token));
+    await runtime.db.prepare("UPDATE orders SET status = 'revoked' WHERE id = ?").bind(parent.id).run();
+    await emailWorker.queue({ messages: [job("recover")] }, env);
+    assert.equal(sent.length, 1);
+  } finally { globalThis.fetch = originalFetch; }
+});

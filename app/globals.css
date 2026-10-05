@@ -1769,3 +1769,34 @@ footer nav {
   .axis-result, .match-card, .entity-card { break-inside: avoid; }
   .result-shell { padding: 0; }
 }
+
+.plan-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin: 16px 0; }
+.plan-options article, .upgrade-offer { padding: 20px; border: 1px solid #c7d8ce; border-radius: 12px; background: #fff; }
+.plan-options ul, .upgrade-offer ul, .pricing-plus ul { padding-left: 20px; margin: 12px 0; }
+.plan-options li, .upgrade-offer li, .pricing-plus li { margin-bottom: 8px; }
+.upgrade-offer { margin-top: 20px; }
+.plus-report { max-width: 880px; margin: 32px auto; padding: 24px; background: #fff; border: 1px solid #dce2dc; border-radius: 12px; }
+.plus-report h2, .plus-report h3 { margin-bottom: 12px; }
+.plus-report p { line-height: 1.65; margin: 10px 0; }
+.plus-group, .friend-comparison { margin-top: 30px; }
+.plus-profile { padding: 18px 0; border-bottom: 1px solid #e1e5e1; }
+.plus-profile h4 { font-size: 18px; }
+.plus-profile h4 span { white-space: nowrap; font-size: 15px; color: #17653a; }
+.plus-profile summary { cursor: pointer; padding: 10px 0; color: #17653a; }
+.comparison-scroll { overflow-x: auto; }
+.comparison-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.comparison-table th, .comparison-table td { padding: 10px 6px; text-align: left; border-bottom: 1px solid #e1e5e1; }
+.comparison-table th:first-child { width: 43%; }
+.comparison-table small { display: block; font-weight: 400; line-height: 1.5; }
+.friend-form input[type="url"] { display: block; width: 100%; margin: 8px 0; padding: 12px; border: 1px solid #aebbb0; border-radius: 8px; }
+@media (max-width: 640px) { .plan-options { grid-template-columns: 1fr; } .plus-report { width: calc(100% - 28px); padding: 16px; } .comparison-table { font-size: 12px; } }
+@media print {
+  .plus-report { max-width: none; border: 0; }
+  .plus-profile { break-inside: avoid; }
+  .plus-profile details { display: none; }
+  .print-comparison { display: block !important; }
+  .plus-profile summary, .friend-form { display: none; }
+  .comparison-scroll { overflow: visible; }
+}
+
+.print-comparison { display: none; }

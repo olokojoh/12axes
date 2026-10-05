@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { decryptPayload, hashToken } from "../../lib/secure-payload";
 import { runtimeEnv } from "../../lib/runtime-env";
 import { privateHeaders } from "../../lib/billing-input";
-import { matchResult } from "../../lib/matching";
+import { reportAccess } from "../../lib/report-access";
+import { matchResult, plusReport } from "../../lib/matching";
 import { isLocale, type Locale } from "../../i18n";
 
 export async function POST(request: NextRequest) {
@@ -17,7 +18,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ status: "preview", axes: payload.axes, quizLength: row.quiz_length }, { headers: privateHeaders });
   }
   if (!row || row.status !== "paid") return NextResponse.json({ status: row?.status ?? "missing" }, { status: row?.status === "pending" ? 202 : 404, headers: privateHeaders });
-  const payload = await decryptPayload<{ axes: number[] }>(row.payload, secret);
+  const access = await reportAccess(runtimeEnv.DB, body.token, secret);
+  if (!access) return NextResponse.json({ status: "revoked" }, { status: 404, headers: privateHeaders });
   const locale = (body.locale ?? row.locale) as Locale;
-  return NextResponse.json({ status: "paid", axes: payload.axes, result: matchResult(payload.axes, locale), locale, quizLength: row.quiz_length, variant: row.variant }, { headers: privateHeaders });
+  return NextResponse.json({ status: "paid", axes: access.axes, result: matchResult(access.axes, locale), plan: access.plan, plus: access.plan === "plus" ? plusReport(access.axes, locale) : null, locale, quizLength: access.root.quiz_length, variant: row.variant }, { headers: privateHeaders });
 }

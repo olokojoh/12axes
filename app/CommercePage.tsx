@@ -1,3 +1,4 @@
+import { plusCopy } from "./plus-copy";
 import { localePath, locales, type Locale } from "./i18n";
 import { ReportRecovery } from "./ReportRecovery";
 import { AnalyticsSettings } from "./Analytics";
@@ -67,7 +68,7 @@ export function CommercePage({ locale, slug }: { locale: Locale; slug: CommerceS
     <header className="site-header"><a className="logo" href={localePath(locale)}><b>12</b><span>axes</span></a><div className="language-links">{locales.map((item) => <a key={item} href={localePath(item, "/" + slug)}>{item.toUpperCase()}</a>)}</div></header>
     <article className="seo-article commerce-article"><h1>{commerceLabels[locale][slug]}</h1><p className="seo-lead">12axes.net · 2026-10-02</p>{content[locale][slug].map((paragraph) => <p key={paragraph}>{paragraph}</p>)}
       {slug === "privacy" && <AnalyticsSettings locale={locale} />}
-      {slug === "pricing" && locale === "pt" && <BrlEstimate />}
+      {slug === "pricing" && <section className="pricing-plus"><h2>{plusCopy[locale].plus} · {plusCopy[locale].price}</h2><p>{plusCopy[locale].includes}</p><ul>{plusCopy[locale].features.map((feature) => <li key={feature}>{feature}</li>)}</ul><p>{plusCopy[locale].notice}</p><p>{plusCopy[locale].upgradeNote}</p>{locale === "pt" && <><BrlEstimate /><BrlEstimate amount={9.99} /></>}</section>}
       {["contact", "refund", "privacy"].includes(slug) && <SupportForm locale={locale} />}
       {["contact", "refund"].includes(slug) && <ReportRecovery locale={locale} />}
     </article>

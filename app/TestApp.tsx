@@ -5,6 +5,9 @@ import { commerceSlugs, commerceLabels } from "./CommercePage";
 import { ReportRecovery } from "./ReportRecovery";
 import { reportUi, axisReading, privateLinkLabel } from "./report-copy";
 import { trackEvent } from "./Analytics";
+import { PlusReport } from "./PlusReport";
+import { plusCopy } from "./plus-copy";
+import type { PlusReportData } from "./lib/matching";
 import { BrlEstimate } from "./BrlEstimate";
 import { axisExplanations, contactLabels, copy, localeNames, localePath, locales, publicContactUrl, type Locale } from "./i18n";
 
@@ -175,6 +178,9 @@ export function TestApp({ locale }: { locale: Locale }) {
   const [reportPending, setReportPending] = useState(false);
   const ctaRef = useRef<HTMLElement>(null);
   const [paid, setPaid] = useState(false);
+  const [plan, setPlan] = useState<"basic" | "plus">("basic");
+  const [plus, setPlus] = useState<PlusReportData | null>(null);
+  const plusText = plusCopy[locale];
   const experimentVariant = "baseline";
   const paidText = reportUi[locale];
 
@@ -292,7 +298,7 @@ export function TestApp({ locale }: { locale: Locale }) {
     setError("");
     try {
       const response = await fetch("/api/report", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ token, preview, locale }) });
-      const payload = await response.json() as { status: string; axes: number[]; result: Result; quizLength: number };
+      const payload = await response.json() as { status: string; axes: number[]; result: Result; quizLength: number; plan: "basic" | "plus"; plus: PlusReportData | null };
       if (payload.status === "preview") {
         setReportPending(false);
         await fetchResult(payload.axes, payload.quizLength, "checkout_cancel");
@@ -302,12 +308,14 @@ export function TestApp({ locale }: { locale: Locale }) {
       if (!response.ok || payload.status !== "paid") throw new Error();
       await loadData();
       setPaid(true);
+      setPlan(payload.plan);
+      setPlus(payload.plus);
       setReportPending(false);
       setResultAxes(payload.axes);
       setResultQuizLength(payload.quizLength);
       setResult(payload.result);
       setMode("results");
-      trackEvent("full_report_view", { variant: experimentVariant, language: locale, device: deviceClass(), quiz_length: payload.quizLength });
+      trackEvent("full_report_view", { plan: payload.plan, variant: experimentVariant, language: locale, device: deviceClass(), quiz_length: payload.quizLength });
     } catch {
       setReportPending(false);
       setError(paidText.reportError);
@@ -315,13 +323,13 @@ export function TestApp({ locale }: { locale: Locale }) {
     }
   }
 
-  async function startCheckout() {
+  async function startCheckout(selectedPlan: "basic" | "plus") {
     if (!result || checkoutBusy || !reportConsent) return;
     setCheckoutBusy(true);
     setError("");
-    trackEvent("checkout_start", { variant: experimentVariant, language: locale, device: deviceClass(), quiz_length: resultQuizLength });
+    trackEvent("checkout_start", { plan: selectedPlan, variant: experimentVariant, language: locale, device: deviceClass(), quiz_length: resultQuizLength });
     try {
-      const response = await fetch("/api/checkout", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ axes: resultAxes, locale, variant: experimentVariant, quizLength: resultQuizLength, consent: reportConsent }) });
+      const response = await fetch("/api/checkout", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ axes: resultAxes, locale, variant: experimentVariant, quizLength: resultQuizLength, consent: reportConsent, plan: selectedPlan, ...(paid && reportToken ? { upgradeToken: reportToken } : {}) }) });
       if (!response.ok) throw new Error();
       const payload = await response.json() as { url: string };
       window.location.href = payload.url;
@@ -374,6 +382,8 @@ export function TestApp({ locale }: { locale: Locale }) {
     setResult(null);
     setResultAxes([]);
     setPaid(false);
+    setPlan("basic");
+    setPlus(null);
     setReportToken(null);
     setReportPending(false);
     setShareId(null);
@@ -517,9 +527,9 @@ export function TestApp({ locale }: { locale: Locale }) {
         </section>
         <ResultMatch match={result.topMatch} label={text.topMatch} locale={locale} large />
         <section className="paid-report-cta" ref={ctaRef}>
-          <h2>{paid ? paidText.unlocked : paidText.title}</h2>
+          <h2>{paid ? plan === "plus" ? plusText.plus : paidText.unlocked : paidText.title}</h2>
           <p>{paidText.body}</p>
-          {paid ? <div className="result-actions">
+          {paid ? <><div className="result-actions">
             <button className="primary-button" onClick={() => window.print()}>{paidText.pdf}</button>
             <button className="secondary-button" onClick={async () => {
               try {
@@ -528,11 +538,10 @@ export function TestApp({ locale }: { locale: Locale }) {
                 window.setTimeout(() => setPrivateLinkCopied(false), 1800);
               } catch { setError(paidText.shareError); }
             }}>{privateLinkCopied ? text.copied : privateLinkLabel[locale]}</button>
-          </div> : <>
+          </div>{plan === "basic" && <div className="upgrade-offer"><h3>{plusText.plus}</h3><p>{plusText.upgradeNote}</p><ul>{plusText.features.map((feature) => <li key={feature}>{feature}</li>)}</ul><label className="consent-label"><input type="checkbox" checked={reportConsent} onChange={(event) => setReportConsent(event.target.checked)} />{paidText.consent}</label><button className="primary-button" disabled={!reportConsent || checkoutBusy} onClick={() => startCheckout("plus")}>{checkoutBusy ? paidText.wait : plusText.upgrade}</button>{locale === "pt" && <BrlEstimate amount={5} />}<p className="billing-note">{paidText.currency}</p><div className="billing-links"><a href={localePath(locale, "/pricing")}>{paidText.pricing}</a><a href={localePath(locale, "/refund")}>{paidText.refund}</a><a href={localePath(locale, "/privacy")}>{paidText.privacy}</a></div></div>}</> : <>
             <label className="consent-label"><input type="checkbox" checked={reportConsent} onChange={(event) => setReportConsent(event.target.checked)} />{paidText.consent}</label>
-            <button className="primary-button" disabled={!reportConsent || checkoutBusy} onClick={startCheckout}>{checkoutBusy ? paidText.wait : paidText.button}</button>
+            <div className="plan-options"><article><h3>{plusText.basic}</h3><p>{paidText.body}</p><button className="primary-button" disabled={!reportConsent || checkoutBusy} onClick={() => startCheckout("basic")}>{checkoutBusy ? paidText.wait : paidText.button}</button>{locale === "pt" && <BrlEstimate />}</article><article><h3>{plusText.plus}</h3><p>{plusText.includes}</p><ul>{plusText.features.map((feature) => <li key={feature}>{feature}</li>)}</ul><button className="primary-button" disabled={!reportConsent || checkoutBusy} onClick={() => startCheckout("plus")}>{checkoutBusy ? paidText.wait : plusText.buy}</button>{locale === "pt" && <BrlEstimate amount={9.99} />}</article></div>
             <p className="billing-note">{paidText.currency}</p>
-            {locale === "pt" && <BrlEstimate />}
             <div className="billing-links"><a href={localePath(locale, "/pricing")}>{paidText.pricing}</a><a href={localePath(locale, "/refund")}>{paidText.refund}</a><a href={localePath(locale, "/privacy")}>{paidText.privacy}</a></div>
           </>}
         </section>
@@ -561,6 +570,7 @@ export function TestApp({ locale }: { locale: Locale }) {
           <div><span className="eyebrow">{text.personality}</span><h2>{result.topPersonalityMatch.name}</h2><p className="entity-tags">{result.topPersonalityMatch.role} {result.topPersonalityMatch.lifespan}</p><p>{result.topPersonalityMatch.description}</p></div>
           <strong>{Math.round(result.topPersonalityMatch.compatibility)}% {auxiliaryUi[locale].match}</strong>
         </section>
+        {paid && plus && reportToken && <PlusReport data={plus} token={reportToken} locale={locale} />}
         <label className="consent-label result-consent"><input type="checkbox" checked={shareConsent} onChange={(event) => setShareConsent(event.target.checked)} />{paidText.shareConsent}</label>
         <div className="result-actions">
           <button className="secondary-button" onClick={reset}>{text.retake}</button>

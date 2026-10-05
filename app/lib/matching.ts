@@ -76,3 +76,32 @@ export function matchResult(axes: number[], locale: Locale) {
     },
   };
 }
+
+export function axisComparison(user: number[], target: number[], locale: Locale) {
+  return catalog.axes[locale].map((axis, i) => ({ label: axis.label, leftPole: axis.leftPole, rightPole: axis.rightPole, user: user[i], target: target[i], difference: Math.round(Math.abs(user[i] - target[i]) * 10) / 10 }));
+}
+
+export function plusReport(axes: number[], locale: Locale) {
+  const language = locale === "pt" ? "pt" : "en";
+  const ideologies = rank(catalog.ideologies, axes, language).slice(0, 10).map(({ profile, compatibility }) => {
+    const copy = locale === "en" || locale === "pt"
+      ? { name: profile.name[locale], description: profile.description[locale] }
+      : translations.ideologies[profile.id as keyof typeof translations.ideologies][locale];
+    return { id: profile.id, name: copy.name, description: copy.description, compatibility, axes: axisComparison(axes, profile.vector, locale) };
+  });
+  const countries = rank(catalog.countries, axes, language).slice(0, 10).map(({ profile, compatibility }) => {
+    const copy = locale === "en" || locale === "pt"
+      ? { name: profile.name[locale], description: profile.description[locale] }
+      : translations.countries[profile.id as keyof typeof translations.countries][locale];
+    return { id: profile.id, name: copy.name, description: copy.description, context: profile.period, compatibility, axes: axisComparison(axes, profile.vector, locale) };
+  });
+  const personalities = rank(catalog.personalities, axes, language).slice(0, 10).map(({ profile, compatibility }) => {
+    const copy = locale === "en" || locale === "pt"
+      ? { name: profile.name[locale], description: profile.description[locale], role: profile.role[locale] }
+      : translations.personalities[profile.id as keyof typeof translations.personalities][locale];
+    return { id: profile.id, name: copy.name, description: copy.description, context: copy.role + " · " + profile.lifespan, compatibility, axes: axisComparison(axes, profile.vector, locale) };
+  });
+  return { ideologies, countries, personalities };
+}
+export type PlusReportData = ReturnType<typeof plusReport>;
+export type AxisComparison = ReturnType<typeof axisComparison>;

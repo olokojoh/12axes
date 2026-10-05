@@ -27,9 +27,10 @@ export async function processStripeEvent(event: StripeEvent, db: D1Database, que
   const object = event.data.object;
   const now = Math.floor(Date.now() / 1000);
   if (["checkout.session.completed", "checkout.session.async_payment_succeeded"].includes(event.type) && object.payment_status === "paid") {
-    const order = await db.prepare("SELECT id, status FROM orders WHERE id = ? AND (checkout_session_id = ? OR checkout_session_id IS NULL)")
-      .bind(object.metadata?.order_id ?? "", object.id).first<{ id: string; status: string }>();
+    const order = await db.prepare("SELECT id, status, expected_amount FROM orders WHERE id = ? AND (checkout_session_id = ? OR checkout_session_id IS NULL)")
+      .bind(object.metadata?.order_id ?? "", object.id).first<{ id: string; status: string; expected_amount: number }>();
     if (order && order.status !== "revoked") {
+      if (object.amount_total !== order.expected_amount || object.currency !== "usd") throw new Error("Payment amount or currency mismatch");
       const email = (object.customer_details?.email ?? object.customer_email)?.trim().toLowerCase() ?? null;
       // Check refund state in the same write, including refunds delivered before payment.
       await db.prepare(`UPDATE orders SET

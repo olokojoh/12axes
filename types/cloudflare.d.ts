@@ -6,6 +6,16 @@ declare namespace Cloudflare {
     STRIPE_PRICE_ID_ES?: string;
     STRIPE_PRICE_ID_RU?: string;
     STRIPE_PRICE_ID_ZH?: string;
+    STRIPE_PLUS_PRICE_ID?: string;
+    STRIPE_PLUS_PRICE_ID_PT?: string;
+    STRIPE_PLUS_PRICE_ID_ES?: string;
+    STRIPE_PLUS_PRICE_ID_RU?: string;
+    STRIPE_PLUS_PRICE_ID_ZH?: string;
+    STRIPE_UPGRADE_PRICE_ID?: string;
+    STRIPE_UPGRADE_PRICE_ID_PT?: string;
+    STRIPE_UPGRADE_PRICE_ID_ES?: string;
+    STRIPE_UPGRADE_PRICE_ID_RU?: string;
+    STRIPE_UPGRADE_PRICE_ID_ZH?: string;
     STRIPE_WEBHOOK_SECRET?: string;
     REPORT_ENCRYPTION_KEY?: string;
     PUBLIC_BASE_URL?: string;

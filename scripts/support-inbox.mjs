@@ -13,12 +13,12 @@ const sql = action === "list"
   : action === "show"
     ? "SELECT payload FROM support_requests WHERE id = ?"
     : action === "delete-report"
-      ? "UPDATE orders SET status = 'revoked', payload = '', token_payload = '', token_hash = ?, customer_email = NULL, revoked_at = ?, updated_at = ? WHERE id = ?"
+      ? "UPDATE orders SET status = 'revoked', payload = '', token_payload = '', token_hash = ? || '/' || id, customer_email = NULL, revoked_at = ?, updated_at = ? WHERE id = (SELECT COALESCE(parent_order_id, id) FROM orders WHERE id = ?) OR parent_order_id = (SELECT COALESCE(parent_order_id, id) FROM orders WHERE id = ?)"
       : action === "delete-share"
         ? "DELETE FROM shared_results WHERE id = ?"
         : "UPDATE support_requests SET resolved_at = ? WHERE id = ?";
 const now = Math.floor(Date.now() / 1000);
-const params = action === "list" ? [] : action === "show" || action === "delete-share" ? [id] : action === "delete-report" ? ["deleted/" + crypto.randomUUID(), now, now, id] : [now, id];
+const params = action === "list" ? [] : action === "show" || action === "delete-share" ? [id] : action === "delete-report" ? ["deleted/" + crypto.randomUUID(), now, now, id, id] : [now, id];
 const response = await fetch("https://api.cloudflare.com/client/v4/accounts/cbc3bde77f12dad362c481794bb7e314/d1/database/d8c10371-80f7-4147-a1da-c337c5764757/query", {
   method: "POST",
   headers: { authorization: "Bearer " + token, "content-type": "application/json" },

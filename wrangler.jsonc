@@ -3,14 +3,26 @@
   "name": "12axes",
   "pages_build_output_dir": "./dist/client",
   "compatibility_date": "2026-05-15",
-  "compatibility_flags": ["nodejs_compat"],
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
   "vars": {
     "STRIPE_PRICE_ID": "price_1UM9lZLKxZkUyWipUcD6FWL2",
     "STRIPE_PRICE_ID_PT": "price_1UMMmTLKxZkUyWipOWW9GunH",
     "STRIPE_PRICE_ID_ES": "price_1UMMmULKxZkUyWipgyrIs8RU",
     "STRIPE_PRICE_ID_RU": "price_1UMMmVLKxZkUyWipJGJgPglx",
     "STRIPE_PRICE_ID_ZH": "price_1UMMmVLKxZkUyWipcdqz2FAc",
-    "PUBLIC_BASE_URL": "https://12axes.net"
+    "PUBLIC_BASE_URL": "https://12axes.net",
+    "STRIPE_PLUS_PRICE_ID": "price_1UNFChLKxZkUyWip35A4k5k5",
+    "STRIPE_UPGRADE_PRICE_ID": "price_1UNFChLKxZkUyWipOh1PRf8K",
+    "STRIPE_PLUS_PRICE_ID_PT": "price_1UNFChLKxZkUyWipSSbg8w2p",
+    "STRIPE_UPGRADE_PRICE_ID_PT": "price_1UNFChLKxZkUyWipPDkIliBt",
+    "STRIPE_PLUS_PRICE_ID_ES": "price_1UNFCiLKxZkUyWipX6G6Cu47",
+    "STRIPE_UPGRADE_PRICE_ID_ES": "price_1UNFCiLKxZkUyWipXGVHdfmT",
+    "STRIPE_PLUS_PRICE_ID_RU": "price_1UNFCiLKxZkUyWip6ypEdZDE",
+    "STRIPE_UPGRADE_PRICE_ID_RU": "price_1UNFCjLKxZkUyWipZySjoPH9",
+    "STRIPE_PLUS_PRICE_ID_ZH": "price_1UNFCjLKxZkUyWipgMObhmTX",
+    "STRIPE_UPGRADE_PRICE_ID_ZH": "price_1UNFCjLKxZkUyWipBL5kggbl"
   },
   "env": {
     "preview": {
@@ -20,12 +32,50 @@
         "STRIPE_PRICE_ID_ES": "price_1UMMlpLKxZkUyWipqLHTVZyK",
         "STRIPE_PRICE_ID_RU": "price_1UMMlqLKxZkUyWip3AZp39r7",
         "STRIPE_PRICE_ID_ZH": "price_1UMMlrLKxZkUyWipPCDeHjLO",
-        "PUBLIC_BASE_URL": "https://payments.12axes-1dg.pages.dev"
+        "PUBLIC_BASE_URL": "https://dev.12axes-1dg.pages.dev",
+        "STRIPE_PLUS_PRICE_ID": "price_1UNFCdLKxZkUyWipQLMK4GIy",
+        "STRIPE_UPGRADE_PRICE_ID": "price_1UNFCeLKxZkUyWipBftuum5x",
+        "STRIPE_PLUS_PRICE_ID_PT": "price_1UNFCeLKxZkUyWip7GGgqq83",
+        "STRIPE_UPGRADE_PRICE_ID_PT": "price_1UNFCeLKxZkUyWipNpvrB1QE",
+        "STRIPE_PLUS_PRICE_ID_ES": "price_1UNFCfLKxZkUyWip11x8HiNV",
+        "STRIPE_UPGRADE_PRICE_ID_ES": "price_1UNFCfLKxZkUyWiprHEnRC2V",
+        "STRIPE_PLUS_PRICE_ID_RU": "price_1UNFCfLKxZkUyWipJwgnt8wi",
+        "STRIPE_UPGRADE_PRICE_ID_RU": "price_1UNFCgLKxZkUyWipAnO5jH42",
+        "STRIPE_PLUS_PRICE_ID_ZH": "price_1UNFCgLKxZkUyWipRgNuIr4Y",
+        "STRIPE_UPGRADE_PRICE_ID_ZH": "price_1UNFCgLKxZkUyWipn7rYNl33"
       },
-      "queues": {"producers": [{"binding": "REPORT_EMAIL_QUEUE", "queue": "12axes-report-email"}]},
-      "d1_databases": [{"binding": "DB", "database_name": "12axes-db", "database_id": "d8c10371-80f7-4147-a1da-c337c5764757", "migrations_dir": "migrations"}]
+      "queues": {
+        "producers": [
+          {
+            "binding": "REPORT_EMAIL_QUEUE",
+            "queue": "12axes-report-email"
+          }
+        ]
+      },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "12axes-db",
+          "database_id": "d8c10371-80f7-4147-a1da-c337c5764757",
+          "migrations_dir": "migrations"
+        }
+      ]
     }
   },
-  "queues": {"producers": [{"binding": "REPORT_EMAIL_QUEUE", "queue": "12axes-report-email"}]},
-  "d1_databases": [{"binding": "DB", "database_name": "12axes-db", "database_id": "d8c10371-80f7-4147-a1da-c337c5764757", "migrations_dir": "migrations"}]
+  "queues": {
+    "producers": [
+      {
+        "binding": "REPORT_EMAIL_QUEUE",
+        "queue": "12axes-report-email"
+      }
+    ]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "12axes-db",
+      "database_id": "d8c10371-80f7-4147-a1da-c337c5764757",
+      "migrations_dir": "migrations"
+    }
+  ]
 }

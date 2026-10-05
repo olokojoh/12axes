@@ -4,7 +4,7 @@ Independent 12-axis quiz implementation with English, Portuguese, Spanish,
 Russian and Simplified Chinese interfaces.
 
 **2026-10-03: the optional report is deployed in all five site languages.**
-Production: https://12axes.net. Preview: https://payments.12axes-1dg.pages.dev (Stripe test mode only).
+Production: https://12axes.net. Preview: https://dev.12axes-1dg.pages.dev (Stripe test mode only).
 Sandbox payment, recovery, duplicate webhook and refund revocation passed; no real payment was made for verification.
 Test report emails arrived in Gmail spam; inbox delivery remains unverified.
 Matching runs locally against a pinned reference catalog. The owner approved encrypted Cloudflare D1
@@ -12,6 +12,8 @@ storage and requested skipping the content authorization review; commercial
 authorization has not been verified.
 See [the implementation record](docs/monetization-implementation.md) for completed
 infrastructure, verification, design decisions and remaining launch work.
+
+The Report Plus implementation and release checks are described in [Report Plus](docs/report-plus.md).
 
 ## Development and validation
 

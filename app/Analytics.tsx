@@ -35,7 +35,7 @@ function enableAnalytics() {
 
 export function trackEvent(name: string, params: Record<string, string | number | boolean> = {}) {
   if (typeof window === "undefined" || !window.gtag || window.localStorage.getItem("12axes:analytics-consent") !== "granted") return;
-  const allowed = new Set(["variant", "language", "device", "quiz_length", "entry_type"]);
+  const allowed = new Set(["variant", "language", "device", "quiz_length", "entry_type", "plan"]);
   const safe = Object.fromEntries(Object.entries(params).filter(([key]) => allowed.has(key)));
   window.gtag("event", name, { ...safe, page_location: window.location.origin + window.location.pathname, page_referrer: "", page_title: "12Axes" });
 }
