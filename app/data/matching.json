@@ -396,23 +396,23 @@
     "zh": [
       {
         "id": "estrutura",
-        "label": "结构",
-        "leftPole": "联邦",
-        "rightPole": "酉",
+        "label": "国家结构",
+        "leftPole": "联邦制",
+        "rightPole": "单一制",
         "leftColor": "#2f80ed",
         "rightColor": "#f2994a"
       },
       {
         "id": "representacao",
-        "label": "表示",
+        "label": "政治代表",
         "leftPole": "民主",
-        "rightPole": "专制",
+        "rightPole": "威权",
         "leftColor": "#00a896",
         "rightColor": "#ff6b6b"
       },
       {
         "id": "poder",
-        "label": "力量",
+        "label": "权力",
         "leftPole": "安全",
         "rightPole": "自由",
         "leftColor": "#4c6ef5",
@@ -422,38 +422,38 @@
         "id": "imigracao",
         "label": "移民",
         "leftPole": "同化",
-        "rightPole": "多元文化主义",
+        "rightPole": "多元文化",
         "leftColor": "#f06595",
         "rightColor": "#5c7cfa"
       },
       {
         "id": "diplomacia",
         "label": "外交",
-        "leftPole": "军国主义者",
-        "rightPole": "和平主义者",
+        "leftPole": "军国主义",
+        "rightPole": "和平主义",
         "leftColor": "#82c91e",
         "rightColor": "#f783ac"
       },
       {
         "id": "intervencao",
-        "label": "干涉",
-        "leftPole": "不干涉主义",
-        "rightPole": "民族主义者",
+        "label": "国际干预",
+        "leftPole": "不干预",
+        "rightPole": "民族主义",
         "leftColor": "#ffe066",
         "rightColor": "#c15f00"
       },
       {
         "id": "economia",
-        "label": "经济",
-        "leftPole": "民众",
-        "rightPole": "私人的",
+        "label": "经济所有制",
+        "leftPole": "公共",
+        "rightPole": "私营",
         "leftColor": "#ff3b30",
         "rightColor": "#ffd166"
       },
       {
         "id": "controle",
-        "label": "控制",
-        "leftPole": "规划",
+        "label": "经济协调",
+        "leftPole": "计划",
         "rightPole": "自由市场",
         "leftColor": "#bf2600",
         "rightColor": "#00897b"
@@ -469,24 +469,24 @@
       {
         "id": "religiao",
         "label": "宗教",
-        "leftPole": "无宗教信仰",
+        "leftPole": "世俗",
         "rightPole": "宗教",
         "leftColor": "#ff9800",
         "rightColor": "#00a6d6"
       },
       {
         "id": "moral",
-        "label": "道德",
+        "label": "社会变迁",
         "leftPole": "进步",
-        "rightPole": "传统主义者",
+        "rightPole": "传统",
         "leftColor": "#9c27b0",
         "rightColor": "#8bc34a"
       },
       {
         "id": "tecnologia",
         "label": "技术",
-        "leftPole": "技术",
-        "rightPole": "生物学",
+        "leftPole": "科技加速",
+        "rightPole": "生物保守",
         "leftColor": "#6aa6b0",
         "rightColor": "#f6ad55"
       }

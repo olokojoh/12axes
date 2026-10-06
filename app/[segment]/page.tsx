@@ -1,3 +1,4 @@
+import { LibraryPage, libraryMetadata } from "../LibraryPage";
 import { homeSchema } from "../home-seo";
 import { notFound } from "next/navigation";
 import { isLocale, type Locale } from "../i18n";
@@ -12,6 +13,7 @@ export async function generateMetadata({ params, searchParams }: { params: Promi
     const metadata = pageMetadata("en", "results", await requestBaseUrl());
     return { ...metadata, robots: { index: false, follow: true } };
   }
+  if (segment === "library") return libraryMetadata("en", await requestBaseUrl());
   if (isLocale(segment)) return homeMetadata(segment);
   if (seoSlugs.includes(segment as SeoSlug)) return pageMetadata("en", segment as SeoSlug, await requestBaseUrl());
   return {};
@@ -19,6 +21,7 @@ export async function generateMetadata({ params, searchParams }: { params: Promi
 
 export default async function SingleSegmentPage({ params, searchParams }: { params: Promise<{ segment: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const { segment } = await params;
+  if (segment === "library") return <LibraryPage locale="en" />;
   if (isLocale(segment)) {
     const locale = segment as Locale;
     const schema = homeSchema(locale, await requestBaseUrl());

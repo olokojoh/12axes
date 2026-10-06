@@ -129,3 +129,9 @@ No keyword or ranking claim is made before production crawl data exists.
 - Reference country profiles are not measured population beliefs. Paid-result storage is encrypted with consent; matching runs in the site's Worker, superseding the earlier external-matching description above.
 - Homepage language switching updates the visible tool, document language, title, description, canonical, sharing metadata and homepage Schema in place. SSR for each direct locale URL remains independently crawlable.
 - Current audit and before/after validation: repository-root `onpage-seo-audit.md`.
+
+## Reference library — 2026-10-07
+
+Public `/library` and `/library/{group}--{id}` pages, with `/pt`, `/es`, `/ru`, `/zh` equivalents, serve browsing and named reference-profile queries. Start with a selected set of existing catalog entries instead of generating all entries. Each detail has a localized definition, category/context, modeled 12-axis table, nearest related library entries and a free-test link. These are modeled positions, not population averages or scientifically validated measurements.
+
+Index the curated directory/details with self-canonicals and reciprocal five-language hreflang; list them in sitemap. Unknown entries return 404. Homepage links to each language's directory. Price and private-result pages retain their existing roles; personal answers, comparisons and simulations never enter public library URLs.

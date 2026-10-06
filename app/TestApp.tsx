@@ -5,6 +5,11 @@ import { commerceSlugs, commerceLabels } from "./CommercePage";
 import { ReportRecovery } from "./ReportRecovery";
 import { reportUi, axisReading, privateLinkLabel } from "./report-copy";
 import { trackEvent } from "./Analytics";
+import { DeepReport } from "./DeepReport";
+import { deepCopy, compactPlanFeatures } from "./deep-copy";
+import { quizVersion } from "./lib/quiz-version";
+import type { DeepReportData, QuizEvidence } from "./lib/quiz-evidence";
+import type { ReportPlan } from "./lib/report-access";
 import { PlusReport } from "./PlusReport";
 import { plusCopy } from "./plus-copy";
 import type { PlusReportData } from "./lib/matching";
@@ -80,6 +85,8 @@ type Result = {
 
 type Mode = "home" | "format" | "quiz" | "extend" | "loading" | "results";
 type Variant = "short" | "extended" | "extreme";
+type SavedTest = { version: string; savedAt: number; mode: "quiz" | "extend" | "results"; variant: Variant; questionIds: string[]; answers: Record<string, string>; questionIndex: number };
+const savedTestKey = "12axes-local-test";
 
 
 function deviceClass() {
@@ -184,9 +191,83 @@ export function TestApp({ locale: initialLocale }: { locale: Locale }) {
   const [reportPending, setReportPending] = useState(false);
   const ctaRef = useRef<HTMLButtonElement>(null);
   const [paid, setPaid] = useState(false);
-  const [plan, setPlan] = useState<"basic" | "plus">("basic");
+  const [plan, setPlan] = useState<ReportPlan>("basic");
   const [plus, setPlus] = useState<PlusReportData | null>(null);
   const plusText = plusCopy[locale];
+  const deepText = deepCopy[locale];
+  const [deep, setDeep] = useState<DeepReportData | null>(null);
+  const [answerConsent, setAnswerConsent] = useState(false);
+  const [hasOriginal, setHasOriginal] = useState(false);
+  const [originalView, setOriginalView] = useState(false);
+  const [entitlement, setEntitlement] = useState<ReportPlan>("basic");
+  const [upgradeContext, setUpgradeContext] = useState<{ token: string; plan: ReportPlan } | null>(null);
+  const [savedTest, setSavedTest] = useState<SavedTest | null>(null);
+  const [saveLocal, setSaveLocal] = useState(true);
+  const currentEvidence: QuizEvidence | null = deep?.evidence ?? (questions.length > 0 && questions.every(q => answers[q.id]) ? { version: quizVersion, questionIds: questions.map(q => q.id), answers: questions.map(q => answers[q.id]) } : null);
+  const neutralCount = deep?.neutralCount ?? questions.filter(q => data?.answerOptions.find(a => a.id === answers[q.id])?.scoreTowardAgreement === 0.5).length;
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+    try {
+      const value = JSON.parse(localStorage.getItem(savedTestKey) || "null");
+      if (value && value.version === quizVersion && Date.now() - value.savedAt < 30 * 86400000 && ["quiz", "extend", "results"].includes(value.mode) && ["short", "extended", "extreme"].includes(value.variant) && Array.isArray(value.questionIds) && [36, 60, 240].includes(value.questionIds.length) && new Set(value.questionIds).size === value.questionIds.length && value.answers && typeof value.answers === "object" && Number.isInteger(value.questionIndex) && value.questionIndex >= 0 && value.questionIndex < value.questionIds.length) setSavedTest(value);
+      else localStorage.removeItem(savedTestKey);
+    } catch { /* Storage may be blocked by the browser. */ }
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    if (!saveLocal || paid || !questions.length || !["quiz", "extend", "results"].includes(mode)) return;
+    const value: SavedTest = { version: quizVersion, savedAt: Date.now(), mode: mode as SavedTest["mode"], variant, questionIds: questions.map(q => q.id), answers, questionIndex };
+    try { localStorage.setItem(savedTestKey, JSON.stringify(value)); } catch { /* The current test still works when local storage is unavailable. */ }
+  }, [saveLocal, paid, questions, answers, questionIndex, mode, variant]);
+
+  function discardLocal() {
+    try { localStorage.removeItem(savedTestKey); } catch { /* Storage can be disabled. */ }
+    setSavedTest(null); setSaveLocal(false);
+  }
+
+  async function resumeTest() {
+    if (!savedTest) return;
+    try {
+      const bank = await loadData();
+      const selected = savedTest.questionIds.map(id => bank.questions.find(q => q.id === id));
+      if (selected.some(q => !q) || Object.entries(savedTest.answers).some(([id, value]) => !savedTest.questionIds.includes(id) || !bank.answerOptions.some(option => option.id === value))) throw new Error();
+      setQuestions(selected as Question[]); setAnswers(savedTest.answers); setQuestionIndex(savedTest.questionIndex); setVariant(savedTest.variant); setSaveLocal(true); setSavedTest(null);
+      if (savedTest.mode === "results" && selected.every(q => savedTest.answers[q!.id])) await fetchResult(calculateAxes(selected as Question[], savedTest.answers, bank), selected.length, "local_resume");
+      else setMode(savedTest.mode === "extend" ? "extend" : "quiz");
+    } catch { setError(deepText.resumeError); discardLocal(); }
+  }
+
+  function prepareDeepRetake() {
+    const previous = paid && reportToken ? { token: reportToken, plan: entitlement } : upgradeContext;
+    reset(); setUpgradeContext(previous);
+    if (previous) window.history.replaceState(null, "", localePath(locale) + "#upgrade=" + previous.token);
+  }
+
+  async function downloadImage() {
+    if (!result) return;
+    await document.fonts.ready;
+    const canvas = document.createElement("canvas");
+    canvas.width = 1080; canvas.height = 1450;
+    const ctx = canvas.getContext("2d")!;
+    ctx.fillStyle = "#f8faf7"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = "#143c28"; ctx.font = "bold 46px sans-serif"; ctx.fillText("12Axes", 60, 82);
+    ctx.font = "bold 34px sans-serif"; ctx.fillText(result.topMatch.name, 60, 143, 960);
+    ctx.font = "24px sans-serif"; ctx.fillText("12axes.net · " + result.topMatch.compatibility + "% " + auxiliaryUi[locale].match, 60, 190);
+    result.axes.forEach((axis, index) => {
+      const y = 255 + index * 91;
+      ctx.fillStyle = "#143c28"; ctx.font = "bold 24px sans-serif"; ctx.fillText(axis.label, 60, y, 900);
+      ctx.font = "20px sans-serif"; ctx.fillText(axis.leftPole + " " + Math.round(axis.leftPercent) + "%", 60, y + 28, 450);
+      ctx.textAlign = "right"; ctx.fillText(Math.round(axis.rightPercent) + "% " + axis.rightPole, 1020, y + 28, 450); ctx.textAlign = "left";
+      ctx.fillStyle = "#d3dacf"; ctx.fillRect(60, y + 42, 960, 18); ctx.fillStyle = "#187b49"; ctx.fillRect(60, y + 42, 960 * axis.leftPercent / 100, 18);
+    });
+    canvas.toBlob(blob => {
+      if (!blob) return;
+      const url = URL.createObjectURL(blob); const link = document.createElement("a"); link.href = url; link.download = "12axes-result.png"; link.click(); window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }, "image/png");
+  }
   const experimentVariant = "baseline";
   const paidText = reportUi[locale];
 
@@ -221,6 +302,8 @@ export function TestApp({ locale: initialLocale }: { locale: Locale }) {
     try {
       const payload = await loadData();
       const chosen = selectQuestions(payload, nextVariant);
+      setSaveLocal(true);
+      setPaid(false); setPlan("basic"); setPlus(null); setDeep(null); setReportToken(null); setHasOriginal(false); setOriginalView(false); setEntitlement("basic"); setAnswerConsent(false);
       setQuestions(chosen);
       setAnswers({});
       setQuestionIndex(0);
@@ -258,17 +341,17 @@ export function TestApp({ locale: initialLocale }: { locale: Locale }) {
     setMode("quiz");
   }
 
-  function calculateAxes() {
-    if (!data) return [];
+  function calculateAxes(selected = questions, chosen = answers, bank = data) {
+    if (!bank) return [];
     const scores = new Map<string, number[]>();
-    const optionScores = new Map(data.answerOptions.map((option) => [option.id, option.scoreTowardAgreement]));
-    for (const question of questions) {
-      const agreement = optionScores.get(answers[question.id]);
+    const optionScores = new Map(bank.answerOptions.map((option) => [option.id, option.scoreTowardAgreement]));
+    for (const question of selected) {
+      const agreement = optionScores.get(chosen[question.id]);
       if (agreement === undefined) continue;
       const left = question.agreePole === "LEFT" ? agreement : 1 - agreement;
       scores.set(question.axisId, [...(scores.get(question.axisId) ?? []), left]);
     }
-    return data.axes.map((axis) => {
+    return bank.axes.map((axis) => {
       const values = scores.get(axis.id) ?? [0.5];
       return Math.round(values.reduce((total, value) => total + value, 0) / values.length * 100);
     });
@@ -322,14 +405,20 @@ export function TestApp({ locale: initialLocale }: { locale: Locale }) {
     }
   }
 
-  async function fetchPaidReport(token: string, preview = false) {
+  async function fetchPaidReport(token: string, preview = false, original = originalView) {
     setMode("loading");
     setError("");
     try {
-      const response = await fetch("/api/report", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ token, preview, locale }) });
-      const payload = await response.json() as { status: string; axes: number[]; result: Result; quizLength: number; plan: "basic" | "plus"; plus: PlusReportData | null };
+      const response = await fetch("/api/report", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ token, preview, locale, original }) });
+      const payload = await response.json() as { status: string; axes: number[]; result: Result; quizLength: number; plan: ReportPlan; plus: PlusReportData | null; deep: DeepReportData | null; hasOriginal: boolean; entitlement: ReportPlan; evidence?: QuizEvidence };
       if (payload.status === "preview") {
         setReportPending(false);
+        if (payload.evidence?.version === quizVersion) {
+          const bank = await loadData();
+          const evidence = payload.evidence;
+          setQuestions(evidence.questionIds.map(id => bank.questions.find(q => q.id === id)!));
+          setAnswers(Object.fromEntries(evidence.questionIds.map((id, index) => [id, evidence.answers[index]])));
+        }
         await fetchResult(payload.axes, payload.quizLength, "checkout_cancel");
         return;
       }
@@ -339,6 +428,7 @@ export function TestApp({ locale: initialLocale }: { locale: Locale }) {
       setPaid(true);
       setPlan(payload.plan);
       setPlus(payload.plus);
+      setDeep(payload.deep); setHasOriginal(payload.hasOriginal); setEntitlement(payload.entitlement);
       setReportPending(false);
       setResultAxes(payload.axes);
       setResultQuizLength(payload.quizLength);
@@ -353,13 +443,14 @@ export function TestApp({ locale: initialLocale }: { locale: Locale }) {
     }
   }
 
-  async function startCheckout(selectedPlan: "basic" | "plus") {
+  async function startCheckout(selectedPlan: ReportPlan) {
     if (!result || checkoutBusy || !reportConsent) return;
+    if (selectedPlan === "deep" && (!currentEvidence || !answerConsent)) return;
     setCheckoutBusy(true);
     setError("");
     trackEvent("checkout_start", { plan: selectedPlan, variant: experimentVariant, language: locale, device: deviceClass(), quiz_length: resultQuizLength });
     try {
-      const response = await fetch("/api/checkout", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ axes: resultAxes, locale, variant: experimentVariant, quizLength: resultQuizLength, consent: reportConsent, plan: selectedPlan, ...(paid && reportToken ? { upgradeToken: reportToken } : {}) }) });
+      const response = await fetch("/api/checkout", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ axes: resultAxes, locale, variant: experimentVariant, quizLength: resultQuizLength, consent: reportConsent, plan: selectedPlan, ...(selectedPlan === "deep" ? { evidence: currentEvidence, answerConsent } : {}), ...(paid && reportToken ? { upgradeToken: reportToken } : selectedPlan === "deep" && upgradeContext ? { upgradeToken: upgradeContext.token } : {}) }) });
       if (!response.ok) throw new Error();
       const payload = await response.json() as { url: string };
       window.location.assign(payload.url);
@@ -368,6 +459,21 @@ export function TestApp({ locale: initialLocale }: { locale: Locale }) {
       setCheckoutBusy(false);
     }
   }
+
+  useEffect(() => {
+    const token = new URLSearchParams(window.location.hash.slice(1)).get("upgrade");
+    if (!token) return;
+    const controller = new AbortController();
+    async function restoreUpgrade() {
+      try {
+        const response = await fetch("/api/report", { method: "POST", signal: controller.signal, headers: { "content-type": "application/json" }, body: JSON.stringify({ token }) });
+        const payload = await response.json() as { status: string; entitlement: ReportPlan };
+        if (!controller.signal.aborted && response.ok && payload.status === "paid" && payload.entitlement !== "deep") setUpgradeContext({ token: token!, plan: payload.entitlement });
+      } catch { /* A revoked report cannot receive an upgrade discount. */ }
+    }
+    void restoreUpgrade();
+    return () => controller.abort();
+  }, []);
 
   useEffect(() => {
     if (!window.location.pathname.endsWith("/results")) return;
@@ -418,7 +524,8 @@ export function TestApp({ locale: initialLocale }: { locale: Locale }) {
     setResultAxes([]);
     setPaid(false);
     setPlan("basic");
-    setPlus(null);
+    setPlus(null); setDeep(null); setHasOriginal(false); setOriginalView(false); setEntitlement("basic"); setAnswerConsent(false); setUpgradeContext(null);
+    discardLocal();
     setReportToken(null);
     setReportPending(false);
     setShareId(null);
@@ -497,14 +604,14 @@ export function TestApp({ locale: initialLocale }: { locale: Locale }) {
         if (result && resultLocale !== locale) {
           const response = await fetch(paid ? "/api/report" : "/api/match", {
             method: "POST", signal: controller.signal, headers: { "content-type": "application/json" },
-            body: JSON.stringify(paid ? { token: reportToken, locale } : { axes: resultAxes, locale }),
+            body: JSON.stringify(paid ? { token: reportToken, locale, original: originalView } : { axes: resultAxes, locale }),
           });
           if (!response.ok) throw new Error();
-          const payload = await response.json() as Result & { status: string; result: Result; plus: PlusReportData | null };
+          const payload = await response.json() as Result & { status: string; result: Result; plus: PlusReportData | null; deep: DeepReportData | null };
           if (controller.signal.aborted) return;
           if (paid && payload.status !== "paid") throw new Error();
           setResult(paid ? payload.result : payload);
-          if (paid) setPlus(payload.plus);
+          if (paid) { setPlus(payload.plus); setDeep(payload.deep); }
           setResultLocale(locale);
         }
       } catch {
@@ -513,7 +620,7 @@ export function TestApp({ locale: initialLocale }: { locale: Locale }) {
     }
     void translate();
     return () => controller.abort();
-  }, [locale, data, dataLocale, result, resultLocale, paid, reportToken, resultAxes]);
+  }, [locale, data, dataLocale, result, resultLocale, paid, reportToken, resultAxes, originalView]);
 
   const currentQuestion = questions[questionIndex];
   const currentAxis = useMemo(() => data?.axes.find((axis) => axis.id === currentQuestion?.axisId), [data, currentQuestion]);
@@ -522,6 +629,7 @@ export function TestApp({ locale: initialLocale }: { locale: Locale }) {
     return (
       <main className="app-shell center-shell">
         <AppHeader locale={locale} onLocale={switchLocale} compact onHome={() => setMode("home")} />
+      {savedTest && <section className="resume-test"><p>{deepText.saved}</p><button className="primary-button" onClick={resumeTest}>{deepText.resume}</button><button className="text-button" onClick={discardLocal}>{deepText.discard}</button></section>}
         <section className="format-panel" aria-labelledby="format-title">
           <span className="eyebrow">{text.eyebrow}</span>
           <h1 id="format-title">{text.formatTitle}</h1>
@@ -595,6 +703,7 @@ export function TestApp({ locale: initialLocale }: { locale: Locale }) {
               else void finish();
             }}>{text.seeResult} →</button>}
         </nav>
+        <p className="local-save-note">{deepText.saved} <button className="text-button" onClick={discardLocal}>{deepText.discard}</button></p>
         {error && <p className="inline-error" role="alert">{error}</p>}
       </main>
     );
@@ -624,9 +733,9 @@ export function TestApp({ locale: initialLocale }: { locale: Locale }) {
         <div className="result-offer">
           <ResultMatch match={result.topMatch} label={text.topMatch} locale={locale} large />
           <section className="paid-report-cta">
-            <h2>{paid ? plan === "plus" ? plusText.plus : paidText.unlocked : plusText.choose}</h2>
-            <p>{paid ? paidText.body : plusText.optional}</p>
-            {paid ? <><div className="result-actions">
+            <h2>{paid ? plan === "deep" ? deepText.name : plan === "plus" ? plusText.plus : paidText.unlocked : plusText.choose}</h2>
+            <p>{paid ? paidText.body : plusText.optional} {!paid && <a href="#free-results">{deepText.freeResults} ↓</a>}</p>
+            {paid ? <>{hasOriginal && <p>{deepText.retestNote} <button className="text-button" onClick={() => { const original = !originalView; setOriginalView(original); void fetchPaidReport(reportToken!, false, original); }}>{originalView ? deepText.latest : deepText.original}</button></p>}<div className="result-actions">
               <button className="primary-button" onClick={() => window.print()}>{paidText.pdf}</button>
               <button className="secondary-button" onClick={async () => {
                 try {
@@ -635,21 +744,23 @@ export function TestApp({ locale: initialLocale }: { locale: Locale }) {
                   window.setTimeout(() => setPrivateLinkCopied(false), 1800);
                 } catch { setError(paidText.shareError); }
               }}>{privateLinkCopied ? text.copied : privateLinkLabel[locale]}</button>
-            </div>{plan === "basic" && <div className="upgrade-offer"><h3>{plusText.plus}</h3><p>{plusText.upgradeNote}</p><ul>{plusText.features.map((feature) => <li key={feature}>{feature}</li>)}</ul><label className="consent-label"><input type="checkbox" checked={reportConsent} onChange={(event) => setReportConsent(event.target.checked)} />{paidText.consent}</label><button className="primary-button" disabled={!reportConsent || checkoutBusy} onClick={() => startCheckout("plus")}>{checkoutBusy ? paidText.wait : plusText.upgrade}</button><CurrencyEstimate locale={locale} amount={5} /><p className="billing-note">{paidText.currency}</p><div className="billing-links"><a href={localePath(locale, "/pricing")}>{paidText.pricing}</a><a href={localePath(locale, "/refund")}>{paidText.refund}</a><a href={localePath(locale, "/privacy")}>{paidText.privacy}</a></div></div>}</> : <>
+            </div>{entitlement === "basic" && <div className="upgrade-offer"><h3>{plusText.plus}</h3><p>{plusText.upgradeNote}</p><ul>{plusText.features.map(feature => <li key={feature}>{feature}</li>)}<li>{deepText.plusExtra}</li></ul><button className="primary-button" disabled={!reportConsent || checkoutBusy} onClick={() => startCheckout("plus")}>{checkoutBusy ? paidText.wait : plusText.upgrade}</button><CurrencyEstimate locale={locale} amount={5} /></div>}
+              {entitlement !== "deep" && <div className="upgrade-offer deep-plan-card"><span className="plan-attention-star" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m12 1.75 2.95 5.98 6.6.96-4.78 4.66 1.13 6.58L12 16.82l-5.9 3.1 1.13-6.58-4.78-4.66 6.6-.96L12 1.75Z" /></svg></span><h3>{deepText.name}</h3><p>{deepText.upgradeNote}</p><ul>{deepText.features.map(feature => <li key={feature}>{feature}</li>)}</ul>{currentEvidence ? <><label className="consent-label"><input type="checkbox" checked={answerConsent} onChange={event => setAnswerConsent(event.target.checked)} />{deepText.consent}</label><button className="primary-button" disabled={!answerConsent || checkoutBusy} onClick={() => startCheckout("deep")}>{deepText.upgrade} · US${entitlement === "plus" ? "5" : "10"}</button><CurrencyEstimate locale={locale} amount={entitlement === "plus" ? 5 : 10} /></> : <><p>{deepText.needsQuiz}</p><button className="primary-button" onClick={prepareDeepRetake}>{deepText.retake}</button></>}</div>}</> : <>
               <label className="consent-label purchase-consent"><input type="checkbox" checked={reportConsent} onChange={(event) => setReportConsent(event.target.checked)} /><span>{paidText.consent} <a href={localePath(locale, "/privacy")}>{paidText.privacy}</a></span></label>
-              <div className="plan-options">
-                {(["basic", "plus"] as const).map((reportPlan) => (
-                  <article id={`report-${reportPlan}`} className={reportPlan === "plus" ? "plus-plan-card" : undefined} key={reportPlan}>
+              {currentEvidence && <label className="consent-label purchase-consent answer-consent"><input type="checkbox" checked={answerConsent} onChange={event => setAnswerConsent(event.target.checked)} /><span>{deepText.consent}</span></label>}
+              <div className="plan-options three-plans">
+                {(["basic", "plus", "deep"] as const).map((reportPlan) => (
+                  <article id={`report-${reportPlan}`} className={reportPlan === "deep" ? "deep-plan-card" : reportPlan === "plus" ? "plus-plan-card" : undefined} key={reportPlan}>
                     <span className="plan-attention-star" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m12 1.75 2.95 5.98 6.6.96-4.78 4.66 1.13 6.58L12 16.82l-5.9 3.1 1.13-6.58-4.78-4.66 6.6-.96L12 1.75Z" /></svg></span>
-                    <h3>{reportPlan === "basic" ? plusText.basic : plusText.plus}</h3>
-                    <p className="plan-price">{reportPlan === "basic" ? plusText.basicAmount : plusText.plusAmount}</p>
-                    <button ref={reportPlan === "basic" ? ctaRef : undefined} className="primary-button report-buy-button" disabled={!reportConsent || checkoutBusy} onClick={() => startCheckout(reportPlan)}>
-                      <span>{checkoutBusy ? paidText.wait : plusText.purchase} · <b>{reportPlan === "basic" ? plusText.basicAmount : plusText.plusAmount}</b><span aria-hidden="true"> →</span></span>
+                    <h3>{reportPlan === "deep" ? deepText.name : reportPlan === "basic" ? plusText.basic : plusText.plus}</h3>
+                    <p className="plan-price">{reportPlan === "deep" ? upgradeContext ? `US$${upgradeContext.plan === "plus" ? "5" : "10"}` : deepText.amount : reportPlan === "basic" ? plusText.basicAmount : plusText.plusAmount}</p>
+                    <button ref={reportPlan === "basic" ? ctaRef : undefined} className="primary-button report-buy-button" disabled={!reportConsent || checkoutBusy || (reportPlan === "deep" && !!currentEvidence && !answerConsent)} onClick={() => reportPlan === "deep" && !currentEvidence ? prepareDeepRetake() : startCheckout(reportPlan)}>
+                      <span>{checkoutBusy ? paidText.wait : reportPlan === "deep" && !currentEvidence ? text.retake : plusText.purchase} · <b>{reportPlan === "deep" ? upgradeContext ? `US$${upgradeContext.plan === "plus" ? "5" : "10"}` : deepText.amount : reportPlan === "basic" ? plusText.basicAmount : plusText.plusAmount}</b><span aria-hidden="true"> →</span></span>
                     </button>
-                    <div className="plan-estimate" data-estimated={locale !== "en"}><CurrencyEstimate locale={locale} amount={reportPlan === "basic" ? 4.99 : 9.99} /></div>
+                    <div className="plan-estimate" data-estimated={locale !== "en"}><CurrencyEstimate locale={locale} amount={reportPlan === "deep" ? upgradeContext ? upgradeContext.plan === "plus" ? 5 : 10 : 14.99 : reportPlan === "basic" ? 4.99 : 9.99} /></div>
                     <ul className="plan-features">
-                      {[...plusText.basicFeatures, ...plusText.extraFeatures].map((feature, index) => {
-                        const included = reportPlan === "plus" || index < plusText.basicFeatures.length;
+                      {compactPlanFeatures[locale].map((feature, index) => {
+                        const included = reportPlan === "deep" || index < (reportPlan === "plus" ? 8 : plusText.basicFeatures.length);
                         return <li key={feature}>
                           <svg className={included ? "feature-included" : "feature-excluded"} viewBox="0 0 20 20" role="img" aria-label={included ? plusText.included : plusText.notIncluded}>
                             <path d={included ? "m4 10 4 4 8-8" : "m5 5 10 10M15 5 5 15"} />
@@ -661,16 +772,21 @@ export function TestApp({ locale: initialLocale }: { locale: Locale }) {
                   </article>
                 ))}
               </div>
+              {!currentEvidence && <p>{deepText.needsQuiz}</p>}
+              {upgradeContext && <p>{deepText.upgradeNote}</p>}
               <p className="billing-note">{paidText.currency}</p>
               <div className="billing-links"><a href={localePath(locale, "/pricing")}>{paidText.pricing}</a><a href={localePath(locale, "/refund")}>{paidText.refund}</a><a href={localePath(locale, "/privacy")}>{paidText.privacy}</a></div>
             </>}
           </section>
 
         </div>
-        <section className="result-intro">
+        <a className="free-results-link" href="#free-results">{deepText.freeResults} ↓</a>
+        <section className="result-intro" id="free-results">
           <span className="eyebrow">{text.resultEyebrow}</span>
           <h2>{text.resultTitle}</h2>
           <p>{text.resultLead}</p>
+          {!!questions.length && <p>{deepText.neutral}: {neutralCount} / {questions.length}</p>}
+          {(questions.length > 0 && neutralCount >= questions.length / 2) && <p className="result-caveat">{deepText.insufficient}</p>}
           {auxiliaryUi[locale].fallbackNote && <p className="result-note">{auxiliaryUi[locale].fallbackNote}</p>}
         </section>
         <section className="axis-results" aria-label="12 axes">
@@ -680,6 +796,7 @@ export function TestApp({ locale: initialLocale }: { locale: Locale }) {
               <header><h2>{localizedAxis?.label ?? axis.label}</h2><span>{axis.intensity} · {axis.dominantPole}</span></header>
               <div className="axis-labels"><b>{localizedAxis?.leftPole ?? axis.leftPole} {Math.round(axis.leftPercent)}%</b><b>{Math.round(axis.rightPercent)}% {localizedAxis?.rightPole ?? axis.rightPole}</b></div>
               <div className="axis-bar"><span style={{ width: `${axis.leftPercent}%` }} /><i style={{ left: `${axis.leftPercent}%` }} /></div>
+              {questions.length > 0 && <small>{deepText.neutral}: {questions.filter(q => q.axisId === axis.axisId && data?.answerOptions.find(a => a.id === answers[q.id])?.scoreTowardAgreement === 0.5).length} / {questions.filter(q => q.axisId === axis.axisId).length}</small>}
               {paid && <p className="axis-interpretation">{axisReading(locale, index, axis.leftPercent, localizedAxis?.leftPole ?? axis.leftPole, localizedAxis?.rightPole ?? axis.rightPole)}</p>}
             </article>;
           })}
@@ -698,13 +815,16 @@ export function TestApp({ locale: initialLocale }: { locale: Locale }) {
           <div><span className="eyebrow">{text.personality}</span><h2>{result.topPersonalityMatch.name}</h2><p className="entity-tags">{result.topPersonalityMatch.role} {result.topPersonalityMatch.lifespan}</p><p>{result.topPersonalityMatch.description}</p></div>
           <strong>{Math.round(result.topPersonalityMatch.compatibility)}% {auxiliaryUi[locale].match}</strong>
         </section>
-        {paid && plus && reportToken && <PlusReport data={plus} token={reportToken} locale={locale} />}
+        {paid && deep && reportToken && <DeepReport data={deep} token={reportToken} locale={locale} />}
+        {paid && plus && reportToken && <PlusReport data={plus} token={reportToken} locale={locale} original={originalView} />}
         <label className="consent-label result-consent"><input type="checkbox" checked={shareConsent} onChange={(event) => setShareConsent(event.target.checked)} />{paidText.shareConsent}</label>
         <div className="result-actions">
+          <button className="secondary-button" onClick={downloadImage}>{deepText.download}</button>
           <button className="secondary-button" onClick={reset}>{text.retake}</button>
           <button className="primary-button" disabled={shareBusy || !shareConsent} onClick={shareResult}>{copied ? text.copied : text.share} ↗</button>
         </div>
         {error && <p className="inline-error" role="alert">{error}</p>}
+        {!paid && <p className="local-save-note">{deepText.saved} <button className="text-button" onClick={discardLocal}>{deepText.discard}</button></p>}
         <ReportRecovery locale={locale} />
         <Footer locale={locale} onLocale={switchLocale} />
       </main>
@@ -714,6 +834,7 @@ export function TestApp({ locale: initialLocale }: { locale: Locale }) {
   return (
     <main className="home-shell">
       <AppHeader locale={locale} onLocale={switchLocale} onHome={() => window.scrollTo({ top: 0, behavior: "smooth" })} />
+      {savedTest && <section className="resume-test"><p>{deepText.saved}</p><button className="primary-button" onClick={resumeTest}>{deepText.resume}</button><button className="text-button" onClick={discardLocal}>{deepText.discard}</button></section>}
       <section className="hero" id="content">
         <div className="hero-copy">
           <span className="eyebrow">{text.eyebrow}</span>
@@ -751,6 +872,7 @@ export function TestApp({ locale: initialLocale }: { locale: Locale }) {
           <div className="spectrum-grid">{text.spectrum.map((item, index) => <article key={item} style={{ "--spectrum": `${index * 42}deg` } as React.CSSProperties}><span /><h3>{item}</h3></article>)}</div>
         </div>
       </section>
+      <section className="section-block"><h2>{deepText.directory}</h2><p>{deepText.libraryHelp}</p><a href={localePath(locale, "/library")}>{deepText.catalog} →</a></section>
       <section className="section-block" id="faq">
         <span className="eyebrow">FAQ</span><h2>{text.faqTitle}</h2>
         <div className="faq-list">{text.faq.map(([question, answer]) => <details key={question}><summary>{question}<span>＋</span></summary><p>{answer}</p></details>)}</div>

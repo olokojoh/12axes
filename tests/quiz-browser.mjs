@@ -5,12 +5,13 @@ export async function verifyQuiz(page, base, { locales = ["en", "pt", "es", "ru"
   async function start(locale, format = 0) {
     await page.goto(base + (locale === "en" ? "/" : "/" + locale));
     await page.waitForSelector(".hero-actions .primary-button");
+    await page.waitForFunction(() => typeof document.querySelector(".hero-actions .primary-button")?.onclick === "function");
     if (await page.evaluate(() => !!document.querySelector(".analytics-consent"))) {
-      await page.click(".analytics-consent .secondary-button");
+      await page.press(".analytics-consent .secondary-button", "Enter");
     }
-    await page.click(".hero-actions .primary-button");
+    await page.press(".hero-actions .primary-button", "Enter");
     await page.waitForSelector(".format-panel");
-    await page.click(`.format-panel .format-card:nth-child(${format + 1})`);
+    await page.press(`.format-panel .format-card:nth-child(${format + 1})`, "Enter");
     await page.waitForSelector(".quiz-shell .answer-grid [role=radio]");
   }
 
@@ -40,21 +41,21 @@ export async function verifyQuiz(page, base, { locales = ["en", "pt", "es", "ru"
     await page.waitForSelector(".result-shell", { timeout: 15000 });
     await page.waitForFunction(() => Math.abs(window.scrollY) < 1);
     assert.equal(await page.evaluate(() => document.querySelector("[role=alert]")?.textContent ?? null), null);
-    assert.equal(await page.evaluate(() => document.querySelectorAll(".plan-options button").length), 2);
+    assert.equal(await page.evaluate(() => document.querySelectorAll(".plan-options button").length), 3);
     assert.equal(await page.evaluate(() => document.querySelector(".plan-overview") === null), true);
     assert.equal(await page.evaluate(() => document.querySelector(".purchase-consent input")?.checked), true);
-    assert.equal(await page.evaluate(() => document.querySelectorAll(".plan-attention-star").length), 2);
+    assert.equal(await page.evaluate(() => document.querySelectorAll(".plan-attention-star").length), 3);
     assert.deepEqual(await page.evaluate(() => [...document.querySelectorAll(".plan-options article")].map(card => ({
       included: card.querySelectorAll(".feature-included").length,
       excluded: card.querySelectorAll(".feature-excluded").length,
-    }))), [{ included: 4, excluded: 3 }, { included: 7, excluded: 0 }]);
+    }))), [{ included: 4, excluded: 8 }, { included: 8, excluded: 4 }, { included: 12, excluded: 0 }]);
     assert.equal(await page.evaluate(() => {
       const buttons = [...document.querySelectorAll(".plan-options button")].map(button => button.getBoundingClientRect());
       const banner = document.querySelector(".analytics-consent")?.getBoundingClientRect();
       const bottom = banner ? Math.min(innerHeight, banner.top) : innerHeight;
-      return buttons.length === 2 && Math.abs(buttons[0].top - buttons[1].top) < 1
+      return buttons.length === 3 && Math.abs(buttons[0].top - buttons[1].top) < 1
         && buttons.every(button => button.top >= 0 && button.bottom <= bottom && button.left >= 0 && button.right <= innerWidth);
-    }), true, "Both checkout buttons must be aligned and fully visible after completion");
+    }), true, "All checkout buttons must be aligned and fully visible after completion");
     assert.equal(await page.evaluate(() => {
       const match = document.querySelector(".match-card.large")?.getBoundingClientRect();
       const cta = document.querySelector(".paid-report-cta")?.getBoundingClientRect();
@@ -65,16 +66,16 @@ export async function verifyQuiz(page, base, { locales = ["en", "pt", "es", "ru"
   for (const locale of locales) {
     await start(locale);
     await answerRange(1, 36, 36, true);
-    await page.click(".extend-card .answer-button:last-child");
+    await page.press(".extend-card .answer-button:last-child", "Enter");
     await result();
     console.log(`${locale}: rapid 36 answers → No → results passed`);
 
     await start(locale);
     await answerRange(1, 36, 36, true);
-    await page.click(".extend-card .answer-button:first-child");
+    await page.press(".extend-card .answer-button:first-child", "Enter");
     await page.waitForSelector(".quiz-actions");
     await answerRange(37, 60, 60);
-    await page.click(".quiz-actions .primary-button");
+    await page.press(".quiz-actions .primary-button", "Enter");
     await result();
     console.log(`${locale}: rapid 36 + 24 answers → results passed`);
   }
@@ -95,7 +96,7 @@ export async function verifyQuiz(page, base, { locales = ["en", "pt", "es", "ru"
   // Deliberately wait past the old timer to catch unwanted navigation after Back.
   await new Promise(resolve => setTimeout(resolve, 250));
   assert.deepEqual(await progress(), [1, 36]);
-  await page.click(".quiz-actions .primary-button");
+  await page.press(".quiz-actions .primary-button", "Enter");
   await page.waitForFunction(() => document.querySelector(".progress-copy b")?.textContent === "Question 2 of 36");
   assert.equal(await page.evaluate(() => document.querySelectorAll('.answer-grid [aria-checked="true"]').length), 1, "Back must preserve the answer just entered");
   await page.evaluate(() => {
@@ -110,7 +111,7 @@ export async function verifyQuiz(page, base, { locales = ["en", "pt", "es", "ru"
   });
   await new Promise(resolve => setTimeout(resolve, 250));
   assert.equal(await page.evaluate(() => !!document.querySelector(".format-panel")), true);
-  await page.click(".format-panel .format-card:first-child");
+  await page.press(".format-panel .format-card:first-child", "Enter");
   await page.waitForSelector(".quiz-actions");
   assert.deepEqual(await progress(), [1, 36]);
   assert.equal(await page.evaluate(() => document.querySelectorAll('.answer-grid [aria-checked="true"]').length), 0);
@@ -126,7 +127,7 @@ export async function verifyQuiz(page, base, { locales = ["en", "pt", "es", "ru"
     for (const [format, total] of [[1, 60], [2, 240]]) {
       await start("en", format);
       await answerRange(1, total, total);
-      await page.click(".quiz-actions .primary-button");
+      await page.press(".quiz-actions .primary-button", "Enter");
       await result();
       console.log(`Direct ${total}-question version with rapid clicks passed`);
     }

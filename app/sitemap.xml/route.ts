@@ -1,9 +1,10 @@
+import { libraryItems } from "../LibraryPage";
 import { htmlLang, localePath, locales } from "../i18n";
 import { seoSlugs } from "../SeoPage";
 
 export function GET(request: Request) {
   const base = new URL(request.url).origin;
-  const pages = ["", ...seoSlugs];
+  const pages = ["", ...seoSlugs, "library", ...libraryItems("en").map(p => "library/" + p.slug)];
   const entries = pages.flatMap((slug) => locales.map((locale) => {
     const path = localePath(locale, slug ? `/${slug}` : "");
     const alternates = locales.map((item) => `<xhtml:link rel="alternate" hreflang="${htmlLang[item]}" href="${base}${localePath(item, slug ? `/${slug}` : "")}"/>`).join("");

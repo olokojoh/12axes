@@ -1881,3 +1881,67 @@ footer nav {
   .result-offer .paid-report-cta > p { font-size: 12px; }
   .plan-options article { padding-left: 8px; padding-right: 8px; }
 }
+
+.three-plans { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.plan-options .deep-plan-card, .deep-plan-card { border: 2px solid #70501b; background: #fffbef; }
+.upgrade-offer { position: relative; margin-top: 16px; }
+.upgrade-offer.deep-plan-card { padding-top: 48px; }
+.plan-options h3 { overflow-wrap: anywhere; }
+.deep-report, .resume-test { max-width: 880px; margin: 28px auto; padding: 24px; border: 1px solid #d8c99e; border-radius: 12px; background: #fffdf7; }
+.deep-report h3 { margin: 28px 0 12px; }
+.deep-report p, .deep-report li { line-height: 1.65; }
+.deep-report details, .explored-profile, .reflection-card { padding: 16px; margin: 12px 0; border: 1px solid #dce2dc; border-radius: 8px; }
+.deep-report summary, .explored-profile summary { cursor: pointer; font-weight: 650; line-height: 1.6; }
+.deep-report ol, .reflection-card ul { padding-left: 22px; }
+.deep-report li { margin: 12px 0; }
+.deep-report a { text-decoration: underline; text-underline-offset: 3px; }
+.answer-explorer form, .profile-explorer form { display: grid; gap: 16px; margin: 16px 0; }
+.answer-explorer label, .profile-explorer label { display: grid; gap: 8px; font-size: 15px; }
+.answer-explorer select, .profile-explorer select, .profile-explorer input[type=search] { width: 100%; min-width: 0; max-width: 100%; padding: 12px; min-height: 44px; border: 1px solid #aebfb4; border-radius: 8px; background: white; color: var(--ink); font: inherit; }
+.profile-explorer label.consent-label { display: flex; }
+.profile-explorer { padding-bottom: 24px; margin-bottom: 24px; border-bottom: 1px solid #dce2dc; }
+.result-caveat { padding: 16px; background: #fff6d9; border-left: 3px solid #9d761e; border-radius: 4px; }
+.text-button { padding: 10px 8px; min-height: 44px; color: #20563b; text-decoration: underline; background: none; border: 0; cursor: pointer; font: inherit; }
+.free-results-link { display: block; width: fit-content; margin: 16px auto; padding: 10px; color: #20563b; text-decoration: underline; }
+.local-save-note { max-width: 880px; margin: 20px auto; padding: 0 16px; font-size: 13px; line-height: 1.6; }
+.library-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 20px; }
+.library-grid article { padding: 18px; border: 1px solid #dce2dc; border-radius: 10px; }
+.library-grid h2 { font-size: 20px; }
+@media (max-width: 640px) {
+  .three-plans { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .three-plans article { grid-row: span 5; }
+  .three-plans article { padding-left: 5px; padding-right: 5px; }
+  .three-plans h3 { font-size: 13px; }
+  .three-plans .plan-price { font-size: 15px; }
+  .three-plans .report-buy-button { font-size: 12px; overflow-wrap: anywhere; }
+  .three-plans .plan-features li { font-size: 12px; overflow-wrap: normal; hyphens: auto; }
+  .deep-report, .resume-test { margin: 20px 14px; padding: 16px; }
+}
+@media print {
+  .deep-report { max-width: none; border: 0; background: white; padding: 0; }
+  .deep-report details::details-content { content-visibility: visible !important; display: block !important; }
+  .deep-report details > * { display: block !important; }
+  .answer-explorer form, .profile-explorer form, .local-save-note, .free-results-link, .text-button { display: none !important; }
+  .reflection-card, .answer-evidence li { break-inside: avoid; }
+  .deep-report a[href]::after { content: " (" attr(href) ")"; font-size: 10px; overflow-wrap: anywhere; }
+}
+@media (max-height: 700px) {
+  body:has(.result-shell) .analytics-consent { position: static; }
+}
+@media (max-width: 640px) and (max-height: 700px) {
+  .result-shell .site-header { margin-bottom: 2px; }
+  .result-offer > .match-card.large { padding: 8px 10px; margin-bottom: 4px; }
+  .result-offer .paid-report-cta { margin-top: 4px; padding: 8px; }
+  .result-offer .paid-report-cta > h2 { font-size: 15px; }
+  .result-offer .paid-report-cta > p { font-size: 11px; line-height: 1.3; margin-bottom: 6px; }
+  .purchase-consent { font-size: 11px; line-height: 1.25; margin-bottom: 6px; gap: 6px; }
+  .purchase-consent input { margin-top: 0; }
+  .three-plans article { padding-top: 28px; row-gap: 6px; }
+  .three-plans h3 { font-size: 12px; }
+  .three-plans .report-buy-button { font-size: 11px; padding: 6px 2px; }
+}
+@media (max-width: 640px) and (max-height: 700px) {
+  .result-offer .paid-report-cta > h2 { margin-bottom: 3px; }
+  .purchase-consent { margin-bottom: 4px; }
+  .three-plans article { row-gap: 3px; }
+}

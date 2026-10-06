@@ -1,3 +1,4 @@
+import { LibraryPage, libraryMetadata } from "../../LibraryPage";
 import { notFound } from "next/navigation";
 import { isLocale } from "../../i18n";
 import { pageMetadata, SeoPage, seoSlugs, type SeoSlug } from "../../SeoPage";
@@ -6,6 +7,8 @@ import { TestApp } from "../../TestApp";
 
 export async function generateMetadata({ params, searchParams }: { params: Promise<{ segment: string; slug: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const { segment, slug } = await params;
+  if (segment === "library") return libraryMetadata("en", await requestBaseUrl(), slug);
+  if (isLocale(segment) && slug === "library") return libraryMetadata(segment, await requestBaseUrl());
   const query = await searchParams;
   if (isLocale(segment) && slug === "results" && (query.est || query.share || query.paid || query.cancelled || query.report)) {
     const metadata = pageMetadata(segment, "results", await requestBaseUrl());
@@ -17,6 +20,8 @@ export async function generateMetadata({ params, searchParams }: { params: Promi
 
 export default async function LocalizedSeoPage({ params, searchParams }: { params: Promise<{ segment: string; slug: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const { segment, slug } = await params;
+  if (segment === "library") return <LibraryPage locale="en" slug={slug} />;
+  if (isLocale(segment) && slug === "library") return <LibraryPage locale={segment} />;
   if (!isLocale(segment) || !seoSlugs.includes(slug as SeoSlug)) notFound();
   const query = await searchParams;
   if (slug === "results" && (query.est || query.share || query.paid || query.cancelled || query.report)) return <TestApp locale={segment} />;

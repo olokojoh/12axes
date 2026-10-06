@@ -11,6 +11,7 @@ export async function verifyLocaleState(page, base, { paidUrl, friendUrl } = {})
     assert.equal(await page.evaluate(s => Boolean(document.querySelector(s)), selector), true, "Current stage must remain mounted");
   }
   await page.goto(base);
+  await page.waitForFunction(() => typeof document.querySelector(".hero-actions button")?.onclick === "function");
   await page.waitForFunction(() => !!document.querySelector(".hero-actions button"));
   origin = await page.evaluate(() => performance.timeOrigin);
   if (await page.evaluate(() => !!document.querySelector(".analytics-consent"))) await page.click(".analytics-consent .secondary-button");
@@ -54,7 +55,7 @@ export async function verifyLocaleState(page, base, { paidUrl, friendUrl } = {})
   const axes = await page.evaluate(() => [...document.querySelectorAll(".axis-results .axis-bar span")].map(e => e.style.width));
   await page.fill('.report-recovery input[type="email"]', "locale-check@example.com");
   await page.click(".result-consent input");
-  await page.click(".purchase-consent input");
+  await page.click(".purchase-consent:not(.answer-consent) input");
   for (const locale of ["pt", "es", "ru", "zh", "en"]) {
     await switchTo(locale, ".result-shell");
     await page.waitForFunction(label => document.querySelector(".axis-results h2")?.textContent === label, banks[locale].axes[0].label);
