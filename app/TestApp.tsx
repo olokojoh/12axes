@@ -203,6 +203,7 @@ export function TestApp({ locale: initialLocale }: { locale: Locale }) {
   const [upgradeContext, setUpgradeContext] = useState<{ token: string; plan: ReportPlan } | null>(null);
   const [savedTest, setSavedTest] = useState<SavedTest | null>(null);
   const [saveLocal, setSaveLocal] = useState(true);
+  const [localSaved, setLocalSaved] = useState(false);
   const currentEvidence: QuizEvidence | null = deep?.evidence ?? (questions.length > 0 && questions.every(q => answers[q.id]) ? { version: quizVersion, questionIds: questions.map(q => q.id), answers: questions.map(q => answers[q.id]) } : null);
   const neutralCount = deep?.neutralCount ?? questions.filter(q => data?.answerOptions.find(a => a.id === answers[q.id])?.scoreTowardAgreement === 0.5).length;
 
@@ -220,12 +221,16 @@ export function TestApp({ locale: initialLocale }: { locale: Locale }) {
   useEffect(() => {
     if (!saveLocal || paid || !questions.length || !["quiz", "extend", "results"].includes(mode)) return;
     const value: SavedTest = { version: quizVersion, savedAt: Date.now(), mode: mode as SavedTest["mode"], variant, questionIds: questions.map(q => q.id), answers, questionIndex };
-    try { localStorage.setItem(savedTestKey, JSON.stringify(value)); } catch { /* The current test still works when local storage is unavailable. */ }
+    const timer = window.setTimeout(() => {
+      try { localStorage.setItem(savedTestKey, JSON.stringify(value)); setLocalSaved(true); }
+      catch { setLocalSaved(false); }
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [saveLocal, paid, questions, answers, questionIndex, mode, variant]);
 
   function discardLocal() {
     try { localStorage.removeItem(savedTestKey); } catch { /* Storage can be disabled. */ }
-    setSavedTest(null); setSaveLocal(false);
+    setSavedTest(null); setSaveLocal(false); setLocalSaved(false);
   }
 
   async function resumeTest() {
@@ -235,6 +240,7 @@ export function TestApp({ locale: initialLocale }: { locale: Locale }) {
       const selected = savedTest.questionIds.map(id => bank.questions.find(q => q.id === id));
       if (selected.some(q => !q) || Object.entries(savedTest.answers).some(([id, value]) => !savedTest.questionIds.includes(id) || !bank.answerOptions.some(option => option.id === value))) throw new Error();
       setQuestions(selected as Question[]); setAnswers(savedTest.answers); setQuestionIndex(savedTest.questionIndex); setVariant(savedTest.variant); setSaveLocal(true); setSavedTest(null);
+      setShareId(null); setShareConsent(false); setCopied(false); setPrivateLinkCopied(false);
       if (savedTest.mode === "results" && selected.every(q => savedTest.answers[q!.id])) await fetchResult(calculateAxes(selected as Question[], savedTest.answers, bank), selected.length, "local_resume");
       else setMode(savedTest.mode === "extend" ? "extend" : "quiz");
     } catch { setError(deepText.resumeError); discardLocal(); }
@@ -303,6 +309,8 @@ export function TestApp({ locale: initialLocale }: { locale: Locale }) {
       const payload = await loadData();
       const chosen = selectQuestions(payload, nextVariant);
       setSaveLocal(true);
+      setLocalSaved(false);
+      setShareId(null); setShareConsent(false); setCopied(false); setPrivateLinkCopied(false);
       setPaid(false); setPlan("basic"); setPlus(null); setDeep(null); setReportToken(null); setHasOriginal(false); setOriginalView(false); setEntitlement("basic"); setAnswerConsent(false);
       setQuestions(chosen);
       setAnswers({});
@@ -373,7 +381,7 @@ export function TestApp({ locale: initialLocale }: { locale: Locale }) {
       trackEvent("result_preview_view", { variant: experimentVariant, language: locale, device: deviceClass(), quiz_length: length, entry_type: entryType });
     } catch {
       setError(auxiliaryUi[locale].resultError);
-      setMode(questions.length ? "quiz" : "home");
+      setMode(questions.length || entryType === "local_resume" ? "quiz" : "home");
     }
   }
 
@@ -703,7 +711,7 @@ export function TestApp({ locale: initialLocale }: { locale: Locale }) {
               else void finish();
             }}>{text.seeResult} →</button>}
         </nav>
-        <p className="local-save-note">{deepText.saved} <button className="text-button" onClick={discardLocal}>{deepText.discard}</button></p>
+        {saveLocal && localSaved && <p className="local-save-note">{deepText.saved} <button className="text-button" onClick={discardLocal}>{deepText.discard}</button></p>}
         {error && <p className="inline-error" role="alert">{error}</p>}
       </main>
     );
@@ -824,7 +832,7 @@ export function TestApp({ locale: initialLocale }: { locale: Locale }) {
           <button className="primary-button" disabled={shareBusy || !shareConsent} onClick={shareResult}>{copied ? text.copied : text.share} ↗</button>
         </div>
         {error && <p className="inline-error" role="alert">{error}</p>}
-        {!paid && <p className="local-save-note">{deepText.saved} <button className="text-button" onClick={discardLocal}>{deepText.discard}</button></p>}
+        {!paid && saveLocal && localSaved && <p className="local-save-note">{deepText.saved} <button className="text-button" onClick={discardLocal}>{deepText.discard}</button></p>}
         <ReportRecovery locale={locale} />
         <Footer locale={locale} onLocale={switchLocale} />
       </main>
