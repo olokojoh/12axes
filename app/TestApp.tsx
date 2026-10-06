@@ -163,6 +163,8 @@ export function TestApp({ locale }: { locale: Locale }) {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [questionIndex, setQuestionIndex] = useState(0);
+  const [answerPending, setAnswerPending] = useState(false);
+  const advanceTimer = useRef<number | null>(null);
   const [result, setResult] = useState<Result | null>(null);
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
@@ -183,6 +185,21 @@ export function TestApp({ locale }: { locale: Locale }) {
   const plusText = plusCopy[locale];
   const experimentVariant = "baseline";
   const paidText = reportUi[locale];
+
+  useEffect(() => () => {
+    if (advanceTimer.current !== null) window.clearTimeout(advanceTimer.current);
+  }, []);
+
+  function cancelAdvance() {
+    if (advanceTimer.current !== null) window.clearTimeout(advanceTimer.current);
+    advanceTimer.current = null;
+    setAnswerPending(false);
+  }
+
+  function goToQuestion(index: number) {
+    cancelAdvance();
+    setQuestionIndex(index);
+  }
 
   async function loadData() {
     if (data) return data;
@@ -212,16 +229,19 @@ export function TestApp({ locale }: { locale: Locale }) {
 
   function answerQuestion(answer: string) {
     const current = questions[questionIndex];
-    if (!current) return;
-    const nextAnswers = { ...answers, [current.id]: answer };
-    setAnswers(nextAnswers);
-    if (questionIndex === questions.length - 1) {
-      if (variant === "short" && questions.length === 36) {
-        window.setTimeout(() => setMode("extend"), 180);
-      }
-      return;
-    }
-    window.setTimeout(() => setQuestionIndex((value) => Math.min(value + 1, questions.length - 1)), 180);
+    if (!current || advanceTimer.current !== null) return;
+    setAnswers((previous) => ({ ...previous, [current.id]: answer }));
+    setError("");
+    const lastQuestion = questionIndex === questions.length - 1;
+    if (lastQuestion && !(variant === "short" && questions.length === 36)) return;
+    setAnswerPending(true);
+    // Lock synchronously so rapid clicks cannot queue multiple advances before rendering.
+    advanceTimer.current = window.setTimeout(() => {
+      advanceTimer.current = null;
+      setAnswerPending(false);
+      if (lastQuestion) setMode("extend");
+      else setQuestionIndex(questionIndex + 1);
+    }, 180);
   }
 
   function extendQuiz() {
@@ -268,10 +288,12 @@ export function TestApp({ locale }: { locale: Locale }) {
   }
 
   async function finish() {
+    cancelAdvance();
     if (questions.some((question) => !answers[question.id])) {
       setError(auxiliaryUi[locale].answerError);
       const missing = questions.findIndex((question) => !answers[question.id]);
       if (missing >= 0) setQuestionIndex(missing);
+      setMode("quiz");
       return;
     }
     const axes = calculateAxes();
@@ -374,6 +396,7 @@ export function TestApp({ locale }: { locale: Locale }) {
   }, [mode, paid, locale, resultQuizLength]);
 
   function reset() {
+    cancelAdvance();
     window.history.replaceState(null, "", localePath(locale));
     setMode("format");
     setQuestions([]);
@@ -462,7 +485,7 @@ export function TestApp({ locale }: { locale: Locale }) {
   if (mode === "quiz" && currentQuestion) {
     return (
       <main className="app-shell quiz-shell">
-        <AppHeader locale={locale} onLocale={switchLocale} compact onHome={() => setMode("home")} action={text.retake} onAction={reset} />
+        <AppHeader locale={locale} onLocale={switchLocale} compact onHome={() => { cancelAdvance(); setMode("home"); }} action={text.retake} onAction={reset} />
         <div className="progress-wrap" aria-label={text.progress(questionIndex + 1, questions.length)}>
           <div className="progress-copy"><span>{currentAxis?.label}</span><b>{text.progress(questionIndex + 1, questions.length)}</b></div>
           <div className="progress-track"><span style={{ width: `${(questionIndex + 1) / questions.length * 100}%` }} /></div>
@@ -479,6 +502,7 @@ export function TestApp({ locale }: { locale: Locale }) {
                 className={answers[currentQuestion.id] === option.id ? "answer-button selected" : "answer-button"}
                 role="radio"
                 aria-checked={answers[currentQuestion.id] === option.id}
+                aria-disabled={answerPending}
                 onClick={() => answerQuestion(option.id)}
               >
                 <span>{["＋＋", "＋", "•", "−", "−−"][index]}</span>
@@ -488,10 +512,14 @@ export function TestApp({ locale }: { locale: Locale }) {
           </div>
         </section>
         <nav className="quiz-actions">
-          <button className="secondary-button" disabled={questionIndex === 0} onClick={() => setQuestionIndex((value) => Math.max(0, value - 1))}>← {text.back}</button>
+          <button className="secondary-button" disabled={questionIndex === 0} onClick={() => goToQuestion(questionIndex - 1)}>← {text.back}</button>
           {questionIndex < questions.length - 1
-            ? <button className="primary-button" disabled={!answers[currentQuestion.id]} onClick={() => setQuestionIndex((value) => Math.min(questions.length - 1, value + 1))}>{text.next} →</button>
-            : <button className="primary-button" disabled={!answers[currentQuestion.id]} onClick={() => variant === "short" && questions.length === 36 ? setMode("extend") : finish()}>{text.seeResult} →</button>}
+            ? <button className="primary-button" disabled={!answers[currentQuestion.id]} onClick={() => goToQuestion(questionIndex + 1)}>{text.next} →</button>
+            : <button className="primary-button" disabled={!answers[currentQuestion.id]} onClick={() => {
+              cancelAdvance();
+              if (variant === "short" && questions.length === 36) setMode("extend");
+              else void finish();
+            }}>{text.seeResult} →</button>}
         </nav>
         {error && <p className="inline-error" role="alert">{error}</p>}
       </main>
@@ -527,8 +555,8 @@ export function TestApp({ locale }: { locale: Locale }) {
         </section>
         <ResultMatch match={result.topMatch} label={text.topMatch} locale={locale} large />
         <section className="paid-report-cta" ref={ctaRef}>
-          <h2>{paid ? plan === "plus" ? plusText.plus : paidText.unlocked : paidText.title}</h2>
-          <p>{paidText.body}</p>
+          <h2>{paid ? plan === "plus" ? plusText.plus : paidText.unlocked : plusText.choose}</h2>
+          <p>{paid ? paidText.body : plusText.optional}</p>
           {paid ? <><div className="result-actions">
             <button className="primary-button" onClick={() => window.print()}>{paidText.pdf}</button>
             <button className="secondary-button" onClick={async () => {
@@ -539,8 +567,23 @@ export function TestApp({ locale }: { locale: Locale }) {
               } catch { setError(paidText.shareError); }
             }}>{privateLinkCopied ? text.copied : privateLinkLabel[locale]}</button>
           </div>{plan === "basic" && <div className="upgrade-offer"><h3>{plusText.plus}</h3><p>{plusText.upgradeNote}</p><ul>{plusText.features.map((feature) => <li key={feature}>{feature}</li>)}</ul><label className="consent-label"><input type="checkbox" checked={reportConsent} onChange={(event) => setReportConsent(event.target.checked)} />{paidText.consent}</label><button className="primary-button" disabled={!reportConsent || checkoutBusy} onClick={() => startCheckout("plus")}>{checkoutBusy ? paidText.wait : plusText.upgrade}</button>{locale === "pt" && <BrlEstimate amount={5} />}<p className="billing-note">{paidText.currency}</p><div className="billing-links"><a href={localePath(locale, "/pricing")}>{paidText.pricing}</a><a href={localePath(locale, "/refund")}>{paidText.refund}</a><a href={localePath(locale, "/privacy")}>{paidText.privacy}</a></div></div>}</> : <>
+            <nav className="plan-overview" aria-label={plusText.choose}>
+              <a href="#report-basic" onClick={(event) => { event.preventDefault(); document.getElementById("report-basic")?.scrollIntoView({ block: "start" }); }}><span>{plusText.basic}</span><strong>{plusText.basicPrice}</strong><span aria-hidden="true">↓</span></a>
+              <a href="#report-plus" onClick={(event) => { event.preventDefault(); document.getElementById("report-plus")?.scrollIntoView({ block: "start" }); }}><span>{plusText.plus}</span><strong>{plusText.price}</strong><span aria-hidden="true">↓</span></a>
+            </nav>
             <label className="consent-label"><input type="checkbox" checked={reportConsent} onChange={(event) => setReportConsent(event.target.checked)} />{paidText.consent}</label>
-            <div className="plan-options"><article><h3>{plusText.basic}</h3><p>{paidText.body}</p><button className="primary-button" disabled={!reportConsent || checkoutBusy} onClick={() => startCheckout("basic")}>{checkoutBusy ? paidText.wait : paidText.button}</button>{locale === "pt" && <BrlEstimate />}</article><article><h3>{plusText.plus}</h3><p>{plusText.includes}</p><ul>{plusText.features.map((feature) => <li key={feature}>{feature}</li>)}</ul><button className="primary-button" disabled={!reportConsent || checkoutBusy} onClick={() => startCheckout("plus")}>{checkoutBusy ? paidText.wait : plusText.buy}</button>{locale === "pt" && <BrlEstimate amount={9.99} />}</article></div>
+            <div className="plan-options">
+              <article id="report-basic">
+                <h3>{plusText.basic}</h3><p className="plan-price">{plusText.basicPrice}</p><p>{paidText.body}</p>
+                <button className="primary-button report-buy-button" disabled={!reportConsent || checkoutBusy} onClick={() => startCheckout("basic")}><span>{checkoutBusy ? paidText.wait : paidText.button}</span><span aria-hidden="true">→</span></button>
+                {locale === "pt" && <BrlEstimate />}
+              </article>
+              <article id="report-plus" className="plus-plan-card">
+                <h3>{plusText.plus}</h3><p className="plan-price">{plusText.price}</p><p>{plusText.includes}</p><ul>{plusText.features.map((feature) => <li key={feature}>{feature}</li>)}</ul>
+                <button className="primary-button report-buy-button" disabled={!reportConsent || checkoutBusy} onClick={() => startCheckout("plus")}><span>{checkoutBusy ? paidText.wait : plusText.buy}</span><span aria-hidden="true">→</span></button>
+                {locale === "pt" && <BrlEstimate amount={9.99} />}
+              </article>
+            </div>
             <p className="billing-note">{paidText.currency}</p>
             <div className="billing-links"><a href={localePath(locale, "/pricing")}>{paidText.pricing}</a><a href={localePath(locale, "/refund")}>{paidText.refund}</a><a href={localePath(locale, "/privacy")}>{paidText.privacy}</a></div>
           </>}

@@ -39,3 +39,20 @@ Accepted on the Git-triggered dev deployment of implementation commit `394d324`,
 - Build, all **32 automated tests**, TypeScript and ESLint passed again after the final copy edit. Local tests also cover duplicate webhook processing, email retries, legacy $4.99 defaults, invalid amount/currency, consent, expired shares and revoked access.
 
 Private tokens, test session URLs, mailbox aliases and detailed API evidence remain in ignored local acceptance files, outside Git. These acceptance results do not predict paid conversion rates or guarantee inbox placement for every provider.
+
+## Result CTA and quiz navigation regression — 2026-10-06
+
+Reproduced three rapid answer clicks advancing from question 1 directly to question 4. Each click queued a separate timer, leaving unanswered questions behind. Choosing No after question 36 then changed the missing-question index without leaving the extension screen or displaying its error.
+
+The fix permits one pending advance, saves answers with a functional state update, and cancels the timer on manual navigation, reset, home and unmount. Missing answers return to the quiz with the error visible. The results CTA now shows both prices together and links to each purchase card; both purchase buttons have two short shine cycles when enabled, respecting reduced-motion preferences.
+
+Validation:
+
+- Browser regression in all five languages: eight immediate clicks per question, all 36 questions followed by No, and 36 + 24 questions followed by results. No skipped questions or completion errors.
+- Direct 60- and 240-question versions also pass with rapid clicks. Back, Next, retake and home cancel pending navigation; Back preserves answers and retake clears them.
+- Both prices fit at 320, 390 and 1280 CSS pixels in all five languages. Both buttons require consent, animate only twice, stop animating under reduced-motion preferences, and the Plus anchor reveals its card.
+- Build, 32 automated tests, TypeScript, ESLint and whitespace checks pass. Payment, entitlement, email and recovery implementations are unchanged from the sandbox acceptance above.
+
+The reproducible browser regression is `tests/quiz-browser.mjs`. From an existing ego-browser task, import `verifyQuiz` and call it with that task's page and a running local or dev base URL. It performs no checkout or payment.
+
+Local Claude Code reviewed this patch separately. Its keyboard-focus finding was reproduced: native disabling moved focus to the document body. Answers now use `aria-disabled` while the synchronous ref guard rejects repeated activation; a keyboard regression checks focus after advancing. Its fragment warning also applies to unpaid checkout-return previews, so plan links scroll without replacing a report fragment. The existing button base already uses `inline-flex`, and no extra layout rule or unreachable extension timer cleanup was added.
