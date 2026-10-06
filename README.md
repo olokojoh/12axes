@@ -3,10 +3,10 @@
 Independent 12-axis quiz implementation with English, Portuguese, Spanish,
 Russian and Simplified Chinese interfaces.
 
-**2026-10-03: the optional report is deployed in all five site languages.**
+**2026-10-06: Report Plus release, in all five site languages.**
 Production: https://12axes.net. Preview: https://dev.12axes-1dg.pages.dev (Stripe test mode only).
 Sandbox payment, recovery, duplicate webhook and refund revocation passed; no real payment was made for verification.
-Test report emails arrived in Gmail spam; inbox delivery remains unverified.
+The October 6 acceptance run confirmed purchase and recovery emails in Gmail Inbox; this does not certify delivery to every mailbox provider.
 Matching runs locally against a pinned reference catalog. The owner approved encrypted Cloudflare D1
 storage and requested skipping the content authorization review; commercial
 authorization has not been verified.
@@ -61,7 +61,7 @@ anonymity**. Public share links do not include experimental assignments or
 private report tokens. Private report credentials use URL fragments and POST
 requests. All report APIs return `no-store`.
 
-The optional report uses a one-time US$4.99 price, without subscriptions,
+The basic report costs US$4.99, Report Plus costs US$9.99, and an existing basic report can add Plus for US$5. All are one-time purchases, without subscriptions,
 false discount anchors, invented country averages, or permanent access promises.
 PDF export currently uses browser print/save, not an emailed PDF attachment.
 Full refunds revoke online access; downloaded files cannot be revoked.
