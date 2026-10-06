@@ -1159,7 +1159,7 @@ footer nav {
   text-align: center;
 }
 
-.result-intro h1 {
+.result-intro h2 {
   margin-bottom: 13px;
   font-size: clamp(36px, 5vw, 54px);
   letter-spacing: -.06em;
@@ -1185,6 +1185,12 @@ footer nav {
   margin-bottom: 20px;
   padding: 30px;
   background: linear-gradient(135deg, white, #f4fff8);
+}
+
+.match-card.large .match-label {
+  margin: 0 0 14px;
+  font-size: clamp(26px, 4vw, 38px);
+  letter-spacing: -.05em;
 }
 
 .match-title {
@@ -1801,21 +1807,18 @@ footer nav {
 
 .print-comparison { display: none; }
 
-.plan-overview { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 20px 0; }
-.plan-overview a { display: grid; gap: 8px; padding: 16px; border: 1px solid #93b7a0; border-radius: 12px; background: #fff; color: #16462a; text-decoration: none; overflow-wrap: anywhere; }
-.plan-overview a:last-child { background: #16462a; border-color: #16462a; color: #fff; }
-.plan-overview strong { font-size: 18px; }
-.plan-overview a:hover { box-shadow: 0 4px 14px #16462a20; }
-.plan-overview a:focus-visible, .plan-options button:focus-visible { outline: 3px solid #16462a; outline-offset: 4px; }
-.plan-options article { scroll-margin-top: 24px; }
+.plan-options article { position: relative; scroll-margin-top: 24px; }
+.plan-options button:focus-visible { outline: 3px solid #16462a; outline-offset: 4px; }
 .plan-options .plus-plan-card { border: 2px solid #17653a; background: #f8fff9; }
+.plan-options article { padding-top: 46px; }
+.plan-attention-star { position: absolute; top: 14px; left: 16px; display: grid; width: 28px; height: 28px; place-items: center; color: #d69b00; filter: drop-shadow(0 5px 9px #d69b0050); }
+.plan-attention-star::before { position: absolute; inset: 1px; border: 1px solid #e6b83e66; border-radius: 50%; content: ""; }
+.plan-attention-star svg { position: relative; z-index: 1; width: 18px; height: 18px; fill: currentColor; transform-origin: center; }
 .paid-report-cta .plan-price { margin: 8px 0 16px; color: #16462a; font-size: 22px; font-weight: 800; }
 .plan-options .primary-button { width: 100%; min-height: 50px; padding: 12px 16px; }
-.report-buy-button { position: relative; overflow: hidden; gap: 10px; }
-.report-buy-button span { position: relative; z-index: 1; }
-.report-buy-button::after { content: ""; position: absolute; inset: 0; background: linear-gradient(110deg, transparent 20%, #ffffff55 50%, transparent 80%); transform: translateX(-130%); pointer-events: none; }
+.report-buy-button { gap: 10px; }
 @media (prefers-reduced-motion: no-preference) {
-  .report-buy-button:not(:disabled)::after { animation: report-button-shine 2.2s ease-in-out 2; }
+  .plan-attention-star { animation: plan-star-breathe 2.4s ease-in-out infinite; }
 }
-@keyframes report-button-shine { 0%, 20% { transform: translateX(-130%); } 75%, 100% { transform: translateX(130%); } }
-@media (max-width: 640px) { .plan-overview a { padding: 12px; } .plan-overview strong { font-size: 16px; } }
+@keyframes plan-star-breathe { 0%, 100% { opacity: .58; transform: scale(.84) rotate(-8deg); } 50% { opacity: 1; transform: scale(1.12) rotate(8deg); } }
+@media (prefers-reduced-motion: reduce) { .plan-attention-star { animation: none; } }

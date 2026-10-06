@@ -38,8 +38,17 @@ export async function verifyQuiz(page, base, { locales = ["en", "pt", "es", "ru"
 
   async function result() {
     await page.waitForSelector(".result-shell", { timeout: 15000 });
+    await page.waitForFunction(() => Math.abs(window.scrollY) < 1);
     assert.equal(await page.evaluate(() => document.querySelector("[role=alert]")?.textContent ?? null), null);
     assert.equal(await page.evaluate(() => document.querySelectorAll(".plan-options button").length), 2);
+    assert.equal(await page.evaluate(() => document.querySelector(".plan-overview") === null), true);
+    assert.equal(await page.evaluate(() => document.querySelector(".plan-options .consent-label input")?.checked), true);
+    assert.equal(await page.evaluate(() => document.querySelectorAll(".plan-attention-star").length), 2);
+    assert.equal(await page.evaluate(() => {
+      const match = document.querySelector(".match-card.large")?.getBoundingClientRect();
+      const cta = document.querySelector(".paid-report-cta")?.getBoundingClientRect();
+      return Boolean(match && cta && match.top < cta.top);
+    }), true);
   }
 
   for (const locale of locales) {

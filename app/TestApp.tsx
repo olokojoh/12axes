@@ -176,7 +176,7 @@ export function TestApp({ locale }: { locale: Locale }) {
   const [checkoutBusy, setCheckoutBusy] = useState(false);
   const [shareBusy, setShareBusy] = useState(false);
   const [shareConsent, setShareConsent] = useState(false);
-  const [reportConsent, setReportConsent] = useState(false);
+  const [reportConsent, setReportConsent] = useState(true);
   const [reportPending, setReportPending] = useState(false);
   const ctaRef = useRef<HTMLElement>(null);
   const [paid, setPaid] = useState(false);
@@ -395,6 +395,10 @@ export function TestApp({ locale }: { locale: Locale }) {
     return () => observer.disconnect();
   }, [mode, paid, locale, resultQuizLength]);
 
+  useEffect(() => {
+    if (mode === "results") window.scrollTo({ top: 0, behavior: "auto" });
+  }, [mode]);
+
   function reset() {
     cancelAdvance();
     window.history.replaceState(null, "", localePath(locale));
@@ -410,7 +414,7 @@ export function TestApp({ locale }: { locale: Locale }) {
     setReportToken(null);
     setReportPending(false);
     setShareId(null);
-    setReportConsent(false);
+    setReportConsent(true);
     setShareConsent(false);
     setError("");
   }
@@ -547,12 +551,6 @@ export function TestApp({ locale }: { locale: Locale }) {
     return (
       <main className="app-shell result-shell">
         <AppHeader locale={locale} onLocale={switchLocale} compact onHome={() => setMode("home")} action={text.retake} onAction={reset} />
-        <section className="result-intro">
-          <span className="eyebrow">{text.resultEyebrow}</span>
-          <h1>{text.resultTitle}</h1>
-          <p>{text.resultLead}</p>
-          {auxiliaryUi[locale].fallbackNote && <p className="result-note">{auxiliaryUi[locale].fallbackNote}</p>}
-        </section>
         <ResultMatch match={result.topMatch} label={text.topMatch} locale={locale} large />
         <section className="paid-report-cta" ref={ctaRef}>
           <h2>{paid ? plan === "plus" ? plusText.plus : paidText.unlocked : plusText.choose}</h2>
@@ -567,18 +565,16 @@ export function TestApp({ locale }: { locale: Locale }) {
               } catch { setError(paidText.shareError); }
             }}>{privateLinkCopied ? text.copied : privateLinkLabel[locale]}</button>
           </div>{plan === "basic" && <div className="upgrade-offer"><h3>{plusText.plus}</h3><p>{plusText.upgradeNote}</p><ul>{plusText.features.map((feature) => <li key={feature}>{feature}</li>)}</ul><label className="consent-label"><input type="checkbox" checked={reportConsent} onChange={(event) => setReportConsent(event.target.checked)} />{paidText.consent}</label><button className="primary-button" disabled={!reportConsent || checkoutBusy} onClick={() => startCheckout("plus")}>{checkoutBusy ? paidText.wait : plusText.upgrade}</button>{locale === "pt" && <BrlEstimate amount={5} />}<p className="billing-note">{paidText.currency}</p><div className="billing-links"><a href={localePath(locale, "/pricing")}>{paidText.pricing}</a><a href={localePath(locale, "/refund")}>{paidText.refund}</a><a href={localePath(locale, "/privacy")}>{paidText.privacy}</a></div></div>}</> : <>
-            <nav className="plan-overview" aria-label={plusText.choose}>
-              <a href="#report-basic" onClick={(event) => { event.preventDefault(); document.getElementById("report-basic")?.scrollIntoView({ block: "start" }); }}><span>{plusText.basic}</span><strong>{plusText.basicPrice}</strong><span aria-hidden="true">↓</span></a>
-              <a href="#report-plus" onClick={(event) => { event.preventDefault(); document.getElementById("report-plus")?.scrollIntoView({ block: "start" }); }}><span>{plusText.plus}</span><strong>{plusText.price}</strong><span aria-hidden="true">↓</span></a>
-            </nav>
             <label className="consent-label"><input type="checkbox" checked={reportConsent} onChange={(event) => setReportConsent(event.target.checked)} />{paidText.consent}</label>
             <div className="plan-options">
               <article id="report-basic">
+                <span className="plan-attention-star" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m12 1.75 2.95 5.98 6.6.96-4.78 4.66 1.13 6.58L12 16.82l-5.9 3.1 1.13-6.58-4.78-4.66 6.6-.96L12 1.75Z" /></svg></span>
                 <h3>{plusText.basic}</h3><p className="plan-price">{plusText.basicPrice}</p><p>{paidText.body}</p>
                 <button className="primary-button report-buy-button" disabled={!reportConsent || checkoutBusy} onClick={() => startCheckout("basic")}><span>{checkoutBusy ? paidText.wait : paidText.button}</span><span aria-hidden="true">→</span></button>
                 {locale === "pt" && <BrlEstimate />}
               </article>
               <article id="report-plus" className="plus-plan-card">
+                <span className="plan-attention-star" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m12 1.75 2.95 5.98 6.6.96-4.78 4.66 1.13 6.58L12 16.82l-5.9 3.1 1.13-6.58-4.78-4.66 6.6-.96L12 1.75Z" /></svg></span>
                 <h3>{plusText.plus}</h3><p className="plan-price">{plusText.price}</p><p>{plusText.includes}</p><ul>{plusText.features.map((feature) => <li key={feature}>{feature}</li>)}</ul>
                 <button className="primary-button report-buy-button" disabled={!reportConsent || checkoutBusy} onClick={() => startCheckout("plus")}><span>{checkoutBusy ? paidText.wait : plusText.buy}</span><span aria-hidden="true">→</span></button>
                 {locale === "pt" && <BrlEstimate amount={9.99} />}
@@ -587,6 +583,12 @@ export function TestApp({ locale }: { locale: Locale }) {
             <p className="billing-note">{paidText.currency}</p>
             <div className="billing-links"><a href={localePath(locale, "/pricing")}>{paidText.pricing}</a><a href={localePath(locale, "/refund")}>{paidText.refund}</a><a href={localePath(locale, "/privacy")}>{paidText.privacy}</a></div>
           </>}
+        </section>
+        <section className="result-intro">
+          <span className="eyebrow">{text.resultEyebrow}</span>
+          <h2>{text.resultTitle}</h2>
+          <p>{text.resultLead}</p>
+          {auxiliaryUi[locale].fallbackNote && <p className="result-note">{auxiliaryUi[locale].fallbackNote}</p>}
         </section>
         <section className="axis-results" aria-label="12 axes">
           {result.axes.map((axis, index) => {
@@ -724,7 +726,7 @@ function ResultPreview({ locale }: { locale: Locale }) {
 function ResultMatch({ match, locale, label, large = false }: { match: Match; locale: Locale; label?: string; large?: boolean }) {
   return (
     <article className={`match-card ${large ? "large" : ""}`}>
-      {label && <span className="eyebrow">{label}</span>}
+      {label && (large ? <h1 className="match-label">{label}</h1> : <span className="eyebrow">{label}</span>)}
       <div className="match-title"><div><small>{match.category}</small><h2>{match.name}</h2></div><div className="mini-ring"><b>{Math.round(match.compatibility)}%</b><i>{auxiliaryUi[locale].match}</i></div></div>
       <p>{match.description}</p>
     </article>
