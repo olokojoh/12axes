@@ -42,7 +42,7 @@ export async function verifyQuiz(page, base, { locales = ["en", "pt", "es", "ru"
     assert.equal(await page.evaluate(() => document.querySelector("[role=alert]")?.textContent ?? null), null);
     assert.equal(await page.evaluate(() => document.querySelectorAll(".plan-options button").length), 2);
     assert.equal(await page.evaluate(() => document.querySelector(".plan-overview") === null), true);
-    assert.equal(await page.evaluate(() => document.querySelector(".plan-options .consent-label input")?.checked), true);
+    assert.equal(await page.evaluate(() => document.querySelector(".paid-report-cta > .consent-label input")?.checked), true);
     assert.equal(await page.evaluate(() => document.querySelectorAll(".plan-attention-star").length), 2);
     assert.equal(await page.evaluate(() => {
       const match = document.querySelector(".match-card.large")?.getBoundingClientRect();
