@@ -178,7 +178,7 @@ export function TestApp({ locale }: { locale: Locale }) {
   const [shareConsent, setShareConsent] = useState(false);
   const [reportConsent, setReportConsent] = useState(true);
   const [reportPending, setReportPending] = useState(false);
-  const ctaRef = useRef<HTMLElement>(null);
+  const ctaRef = useRef<HTMLDivElement>(null);
   const [paid, setPaid] = useState(false);
   const [plan, setPlan] = useState<"basic" | "plus">("basic");
   const [plus, setPlus] = useState<PlusReportData | null>(null);
@@ -396,7 +396,7 @@ export function TestApp({ locale }: { locale: Locale }) {
   }, [mode, paid, locale, resultQuizLength]);
 
   useEffect(() => {
-    if (mode === "results") window.scrollTo({ top: 0, behavior: "auto" });
+    if (mode === "results") window.scrollTo({ top: 0, behavior: "instant" });
   }, [mode]);
 
   function reset() {
@@ -551,39 +551,56 @@ export function TestApp({ locale }: { locale: Locale }) {
     return (
       <main className="app-shell result-shell">
         <AppHeader locale={locale} onLocale={switchLocale} compact onHome={() => setMode("home")} action={text.retake} onAction={reset} />
-        <ResultMatch match={result.topMatch} label={text.topMatch} locale={locale} large />
-        <section className="paid-report-cta" ref={ctaRef}>
-          <h2>{paid ? plan === "plus" ? plusText.plus : paidText.unlocked : plusText.choose}</h2>
-          <p>{paid ? paidText.body : plusText.optional}</p>
-          {paid ? <><div className="result-actions">
-            <button className="primary-button" onClick={() => window.print()}>{paidText.pdf}</button>
-            <button className="secondary-button" onClick={async () => {
-              try {
-                await navigator.clipboard.writeText(window.location.origin + localePath(locale, "/results") + "?paid=1#report=" + reportToken);
-                setPrivateLinkCopied(true);
-                window.setTimeout(() => setPrivateLinkCopied(false), 1800);
-              } catch { setError(paidText.shareError); }
-            }}>{privateLinkCopied ? text.copied : privateLinkLabel[locale]}</button>
-          </div>{plan === "basic" && <div className="upgrade-offer"><h3>{plusText.plus}</h3><p>{plusText.upgradeNote}</p><ul>{plusText.features.map((feature) => <li key={feature}>{feature}</li>)}</ul><label className="consent-label"><input type="checkbox" checked={reportConsent} onChange={(event) => setReportConsent(event.target.checked)} />{paidText.consent}</label><button className="primary-button" disabled={!reportConsent || checkoutBusy} onClick={() => startCheckout("plus")}>{checkoutBusy ? paidText.wait : plusText.upgrade}</button>{locale === "pt" && <BrlEstimate amount={5} />}<p className="billing-note">{paidText.currency}</p><div className="billing-links"><a href={localePath(locale, "/pricing")}>{paidText.pricing}</a><a href={localePath(locale, "/refund")}>{paidText.refund}</a><a href={localePath(locale, "/privacy")}>{paidText.privacy}</a></div></div>}</> : <>
-            <label className="consent-label"><input type="checkbox" checked={reportConsent} onChange={(event) => setReportConsent(event.target.checked)} />{paidText.consent}</label>
-            <div className="plan-options">
-              <article id="report-basic">
-                <span className="plan-attention-star" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m12 1.75 2.95 5.98 6.6.96-4.78 4.66 1.13 6.58L12 16.82l-5.9 3.1 1.13-6.58-4.78-4.66 6.6-.96L12 1.75Z" /></svg></span>
-                <h3>{plusText.basic}</h3><p className="plan-price">{plusText.basicPrice}</p><p>{paidText.body}</p>
-                <button className="primary-button report-buy-button" disabled={!reportConsent || checkoutBusy} onClick={() => startCheckout("basic")}><span>{checkoutBusy ? paidText.wait : paidText.button}</span><span aria-hidden="true">→</span></button>
-                {locale === "pt" && <BrlEstimate />}
-              </article>
-              <article id="report-plus" className="plus-plan-card">
-                <span className="plan-attention-star" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m12 1.75 2.95 5.98 6.6.96-4.78 4.66 1.13 6.58L12 16.82l-5.9 3.1 1.13-6.58-4.78-4.66 6.6-.96L12 1.75Z" /></svg></span>
-                <h3>{plusText.plus}</h3><p className="plan-price">{plusText.price}</p><p>{plusText.includes}</p><ul>{plusText.features.map((feature) => <li key={feature}>{feature}</li>)}</ul>
-                <button className="primary-button report-buy-button" disabled={!reportConsent || checkoutBusy} onClick={() => startCheckout("plus")}><span>{checkoutBusy ? paidText.wait : plusText.buy}</span><span aria-hidden="true">→</span></button>
-                {locale === "pt" && <BrlEstimate amount={9.99} />}
-              </article>
+        <div className="result-offer">
+          <ResultMatch match={result.topMatch} label={text.topMatch} locale={locale} large />
+          <section className="paid-report-cta">
+            <h2>{paid ? plan === "plus" ? plusText.plus : paidText.unlocked : plusText.choose}</h2>
+            <p>{paid ? paidText.body : plusText.optional}</p>
+            {paid ? <><div className="result-actions">
+              <button className="primary-button" onClick={() => window.print()}>{paidText.pdf}</button>
+              <button className="secondary-button" onClick={async () => {
+                try {
+                  await navigator.clipboard.writeText(window.location.origin + localePath(locale, "/results") + "?paid=1#report=" + reportToken);
+                  setPrivateLinkCopied(true);
+                  window.setTimeout(() => setPrivateLinkCopied(false), 1800);
+                } catch { setError(paidText.shareError); }
+              }}>{privateLinkCopied ? text.copied : privateLinkLabel[locale]}</button>
+            </div>{plan === "basic" && <div className="upgrade-offer"><h3>{plusText.plus}</h3><p>{plusText.upgradeNote}</p><ul>{plusText.features.map((feature) => <li key={feature}>{feature}</li>)}</ul><label className="consent-label"><input type="checkbox" checked={reportConsent} onChange={(event) => setReportConsent(event.target.checked)} />{paidText.consent}</label><button className="primary-button" disabled={!reportConsent || checkoutBusy} onClick={() => startCheckout("plus")}>{checkoutBusy ? paidText.wait : plusText.upgrade}</button>{locale === "pt" && <BrlEstimate amount={5} />}<p className="billing-note">{paidText.currency}</p><div className="billing-links"><a href={localePath(locale, "/pricing")}>{paidText.pricing}</a><a href={localePath(locale, "/refund")}>{paidText.refund}</a><a href={localePath(locale, "/privacy")}>{paidText.privacy}</a></div></div>}</> : <>
+              <div className="plan-options">
+                {(["basic", "plus"] as const).map((reportPlan) => (
+                  <article id={`report-${reportPlan}`} className={reportPlan === "plus" ? "plus-plan-card" : undefined} key={reportPlan}>
+                    <span className="plan-attention-star" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m12 1.75 2.95 5.98 6.6.96-4.78 4.66 1.13 6.58L12 16.82l-5.9 3.1 1.13-6.58-4.78-4.66 6.6-.96L12 1.75Z" /></svg></span>
+                    <h3>{reportPlan === "basic" ? plusText.basic : plusText.plus}</h3>
+                    <p className="plan-price">{reportPlan === "basic" ? plusText.basicPrice : plusText.price}</p>
+                    <ul className="plan-features">
+                      {[...plusText.basicFeatures, ...plusText.extraFeatures].map((feature, index) => {
+                        const included = reportPlan === "plus" || index < plusText.basicFeatures.length;
+                        return <li key={feature}>
+                          <svg className={included ? "feature-included" : "feature-excluded"} viewBox="0 0 20 20" role="img" aria-label={included ? plusText.included : plusText.notIncluded}>
+                            <path d={included ? "m4 10 4 4 8-8" : "m5 5 10 10M15 5 5 15"} />
+                          </svg>
+                          <span>{feature}</span>
+                        </li>;
+                      })}
+                    </ul>
+                  </article>
+                ))}
+              </div>
+              {locale === "pt" && <div className="plan-estimates"><BrlEstimate /><BrlEstimate amount={9.99} /></div>}
+              <p className="billing-note">{paidText.currency}</p>
+              <div className="billing-links"><a href={localePath(locale, "/pricing")}>{paidText.pricing}</a><a href={localePath(locale, "/refund")}>{paidText.refund}</a><a href={localePath(locale, "/privacy")}>{paidText.privacy}</a></div>
+            </>}
+          </section>
+          {!paid && <div className="plan-checkout" ref={ctaRef}>
+            <label className="consent-label"><input type="checkbox" checked={reportConsent} onChange={(event) => setReportConsent(event.target.checked)} /><span>{paidText.consent} <a href={localePath(locale, "/privacy")}>{paidText.privacy}</a></span></label>
+            <div className="plan-checkout-buttons">
+              {(["basic", "plus"] as const).map((reportPlan) => <button key={reportPlan} className="primary-button report-buy-button" disabled={!reportConsent || checkoutBusy} onClick={() => startCheckout(reportPlan)}>
+                <span className="checkout-plan-name">{reportPlan === "basic" ? plusText.basic : plusText.plus}</span>
+                <span>{checkoutBusy ? paidText.wait : plusText.purchase} · <b>{reportPlan === "basic" ? plusText.basicAmount : plusText.plusAmount}</b><span aria-hidden="true"> →</span></span>
+              </button>)}
             </div>
-            <p className="billing-note">{paidText.currency}</p>
-            <div className="billing-links"><a href={localePath(locale, "/pricing")}>{paidText.pricing}</a><a href={localePath(locale, "/refund")}>{paidText.refund}</a><a href={localePath(locale, "/privacy")}>{paidText.privacy}</a></div>
-          </>}
-        </section>
+          </div>}
+        </div>
         <section className="result-intro">
           <span className="eyebrow">{text.resultEyebrow}</span>
           <h2>{text.resultTitle}</h2>

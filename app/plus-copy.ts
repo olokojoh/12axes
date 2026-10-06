@@ -1,9 +1,12 @@
 import type { Locale } from "./i18n";
 
-type PlusCopy = Record<"choose" | "optional" | "basicPrice" | "basic" | "plus" | "price" | "buy" | "upgrade" | "upgradeNote" | "includes" | "ideology" | "countries" | "people" | "notice" | "details" | "closest" | "furthest" | "axis" | "you" | "reference" | "gap" | "scale" | "friend" | "friendHelp" | "friendInput" | "consent" | "compare" | "busy" | "error" | "friendTarget" | "lengths" | "different", string> & { features: string[] };
+type PlusCopy = Record<"included" | "notIncluded" | "purchase" | "basicAmount" | "plusAmount" | "choose" | "optional" | "basicPrice" | "basic" | "plus" | "price" | "buy" | "upgrade" | "upgradeNote" | "includes" | "ideology" | "countries" | "people" | "notice" | "details" | "closest" | "furthest" | "axis" | "you" | "reference" | "gap" | "scale" | "friend" | "friendHelp" | "friendInput" | "consent" | "compare" | "busy" | "error" | "friendTarget" | "lengths" | "different", string> & { features: string[]; basicFeatures: string[]; extraFeatures: string[] };
 
 export const plusCopy = {
   en: {
+    included: "Included", notIncluded: "Not included", purchase: "Unlock", basicAmount: "US$4.99", plusAmount: "US$9.99",
+    basicFeatures: ["12-axis interpretations", "Top 10 ideology matches", "Private report link & email recovery", "Print / save report as PDF"],
+    extraFeatures: ["Axis comparisons with 10 ideologies", "10 country & 10 personality profiles, with axis comparisons", "12-axis comparison with a friend"],
     choose: "Choose your report", optional: "Your basic results remain free. Both reports are one-time purchases, with no subscription.", basicPrice: "US$4.99 once",
     basic: "Personal Report", plus: "Report Plus", price: "US$9.99 once", buy: "Unlock Report Plus · US$9.99", upgrade: "Upgrade this report · US$5.00", upgradeNote: "Already paid US$4.99? Add only the new features for US$5.00. Your original report stays available. Refunding the upgrade removes only the added features; refunding the original purchase also removes upgrade access.",
     includes: "Everything in the US$4.99 report, plus:", features: ["Axis-by-axis comparison with your top 10 ideologies", "Top 10 country profiles and top 10 personalities, with descriptions and axis differences", "Compare all 12 axes with a friend’s freely shared result", "All added comparisons included in the print / PDF view"],
@@ -11,6 +14,9 @@ export const plusCopy = {
     friend: "Compare with a friend", friendHelp: "Ask your friend to finish the free test and voluntarily send you their public share link. Paste that link below, never a private paid-report link. The comparison is not stored; re-enter the link when you return.", friendInput: "Friend’s public share link", consent: "My friend chose to share this result with me, and I agree to compare it with mine.", compare: "Compare results", busy: "Loading…", error: "Could not compare. Use a valid, unexpired 12Axes public share link and an active Report Plus.", friendTarget: "Friend", lengths: "Question counts (you / friend)", different: "Different question counts can affect the comparison.",
   },
   pt: {
+    included: "Incluído", notIncluded: "Não incluído", purchase: "Desbloquear", basicAmount: "US$ 4,99", plusAmount: "US$ 9,99",
+    basicFeatures: ["Interpretação dos 12 eixos", "10 ideologias mais próximas", "Link privado e recuperação por email", "Imprimir / salvar relatório em PDF"],
+    extraFeatures: ["Comparar eixos com 10 ideologias", "10 países e 10 personalidades, com comparação por eixo", "Comparar 12 eixos com um amigo"],
     choose: "Escolha seu relatório", optional: "Seu resultado básico continua gratuito. Os dois relatórios têm pagamento único, sem assinatura.", basicPrice: "US$ 4,99 uma vez",
     basic: "Relatório pessoal", plus: "Relatório Plus", price: "US$ 9,99 uma vez", buy: "Desbloquear Plus · US$ 9,99", upgrade: "Ampliar este relatório · US$ 5,00", upgradeNote: "Já pagou US$ 4,99? Adicione apenas os novos recursos por US$ 5,00. Seu relatório original continua disponível. Reembolsar a ampliação remove só os extras; reembolsar a compra original também encerra o acesso à ampliação.",
     includes: "Tudo do relatório de US$ 4,99, mais:", features: ["Comparação por eixo com suas 10 ideologias mais próximas", "10 perfis de países e 10 personalidades, com descrições e diferenças por eixo", "Comparação dos 12 eixos com um resultado compartilhado gratuitamente por um amigo", "Comparações adicionais incluídas na impressão / PDF"],
@@ -18,6 +24,9 @@ export const plusCopy = {
     friend: "Compare com um amigo", friendHelp: "Peça ao seu amigo para concluir o teste gratuito e enviar voluntariamente o link público do resultado. Cole o link abaixo, nunca um link privado de relatório pago. A comparação não é salva; insira o link novamente ao voltar.", friendInput: "Link público do amigo", consent: "Meu amigo escolheu compartilhar este resultado comigo e concordo em compará-lo com o meu.", compare: "Comparar resultados", busy: "Carregando…", error: "Não foi possível comparar. Use um link público válido e não expirado do 12Axes e um Relatório Plus ativo.", friendTarget: "Amigo", lengths: "Número de perguntas (você / amigo)", different: "Quantidades diferentes de perguntas podem afetar a comparação.",
   },
   es: {
+    included: "Incluido", notIncluded: "No incluido", purchase: "Desbloquear", basicAmount: "4,99 USD", plusAmount: "9,99 USD",
+    basicFeatures: ["Interpretación de los 12 ejes", "10 ideologías más cercanas", "Enlace privado y recuperación por email", "Imprimir / guardar informe en PDF"],
+    extraFeatures: ["Comparar ejes con 10 ideologías", "10 países y 10 personalidades con comparación por eje", "Comparar 12 ejes con un amigo"],
     choose: "Elige tu informe", optional: "Tus resultados básicos siguen siendo gratis. Ambos informes son de pago único, sin suscripción.", basicPrice: "4,99 USD una vez",
     basic: "Informe personal", plus: "Informe Plus", price: "9,99 USD una vez", buy: "Desbloquear Plus · 9,99 USD", upgrade: "Ampliar este informe · 5,00 USD", upgradeNote: "¿Ya pagaste 4,99 USD? Añade solo las nuevas funciones por 5,00 USD. Conservas tu informe original. Reembolsar la ampliación elimina solo los extras; reembolsar la compra original también elimina el acceso a la ampliación.",
     includes: "Todo el informe de 4,99 USD, más:", features: ["Comparación por eje con tus 10 ideologías más cercanas", "10 perfiles de países y 10 personalidades con descripciones y diferencias por eje", "Comparación de los 12 ejes con el resultado que un amigo comparta gratis", "Comparaciones adicionales incluidas en impresión / PDF"],
@@ -25,6 +34,9 @@ export const plusCopy = {
     friend: "Compara con un amigo", friendHelp: "Pide a tu amigo que complete el test gratuito y te envíe voluntariamente su enlace público. Pégalo abajo, nunca un enlace privado de informe pagado. La comparación no se guarda; vuelve a introducir el enlace al regresar.", friendInput: "Enlace público de tu amigo", consent: "Mi amigo eligió compartir este resultado conmigo y acepto compararlo con el mío.", compare: "Comparar resultados", busy: "Cargando…", error: "No se pudo comparar. Usa un enlace público de 12Axes válido y vigente y un Informe Plus activo.", friendTarget: "Amigo", lengths: "Cantidad de preguntas (tú / amigo)", different: "Distintas cantidades de preguntas pueden afectar la comparación.",
   },
   ru: {
+    included: "Включено", notIncluded: "Не включено", purchase: "Открыть", basicAmount: "4,99 USD", plusAmount: "9,99 USD",
+    basicFeatures: ["Толкование 12 осей", "10 ближайших идеологий", "Личная ссылка и восстановление по email", "Печать / сохранение отчёта в PDF"],
+    extraFeatures: ["Сравнение осей с 10 идеологиями", "10 стран и 10 личностей со сравнением осей", "Сравнение 12 осей с другом"],
     choose: "Выберите отчёт", optional: "Базовые результаты остаются бесплатными. Оба отчёта оплачиваются один раз, без подписки.", basicPrice: "4,99 USD однократно",
     basic: "Личный отчёт", plus: "Отчёт Plus", price: "9,99 USD однократно", buy: "Открыть Plus · 9,99 USD", upgrade: "Расширить отчёт · 5,00 USD", upgradeNote: "Уже заплатили 4,99 USD? Добавьте новые функции за 5,00 USD. Исходный отчёт остаётся доступным. Возврат доплаты убирает только дополнения; возврат исходной покупки также прекращает доступ к расширению.",
     includes: "Всё из отчёта за 4,99 USD, а также:", features: ["Сравнение по осям с 10 ближайшими идеологиями", "10 профилей стран и 10 личностей с описаниями и различиями по осям", "Сравнение 12 осей с результатом, которым друг поделился бесплатно", "Все дополнительные сравнения в версии для печати / PDF"],
@@ -32,6 +44,9 @@ export const plusCopy = {
     friend: "Сравнение с другом", friendHelp: "Попросите друга пройти бесплатный тест и добровольно отправить публичную ссылку на результат. Вставьте её ниже, не приватную ссылку платного отчёта. Сравнение не сохраняется; при следующем визите вставьте ссылку снова.", friendInput: "Публичная ссылка друга", consent: "Друг решил поделиться со мной этим результатом, и я согласен сравнить его со своим.", compare: "Сравнить результаты", busy: "Загрузка…", error: "Не удалось сравнить. Нужны действующая публичная ссылка 12Axes и активный отчёт Plus.", friendTarget: "Друг", lengths: "Число вопросов (вы / друг)", different: "Разное число вопросов может повлиять на сравнение.",
   },
   zh: {
+    included: "包含", notIncluded: "不包含", purchase: "解锁", basicAmount: "US$4.99", plusAmount: "US$9.99",
+    basicFeatures: ["12 轴逐轴解读", "前 10 个意识形态匹配", "私人链接与邮件找回", "打印／保存报告为 PDF"],
+    extraFeatures: ["与 10 个意识形态逐轴对比", "10 个国家与 10 位人物画像及逐轴对比", "和朋友比较全部 12 轴"],
     choose: "选择你的报告", optional: "基础结果继续免费。两档报告均为一次性购买，没有订阅。", basicPrice: "一次性 US$4.99",
     basic: "个人报告", plus: "进阶报告 Plus", price: "一次性 US$9.99", buy: "解锁进阶报告 · US$9.99", upgrade: "升级这份报告 · 补 US$5.00", upgradeNote: "已支付 US$4.99？补 US$5.00 即可增加新功能，原报告权益保留。退还升级款只移除新增功能；退还原订单也会终止升级访问。",
     includes: "包含 US$4.99 报告全部权益，另外增加：", features: ["与前 10 个意识形态逐轴比较，了解相近与分歧之处", "前 10 个国家参考画像、前 10 位人物，含说明及逐轴差异", "与朋友免费分享的结果比较全部 12 轴", "新增比较内容可一并打印／保存 PDF"],
