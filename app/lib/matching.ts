@@ -27,9 +27,9 @@ export function compatibility(user: number[], target: number[]) {
   return Math.round(Math.max(0, Math.min(100, score)) * 10) / 10;
 }
 
-function rank<T extends { vector: number[]; name: { pt: string; en: string } }>(profiles: T[], axes: number[], language: "pt" | "en") {
+function rank<T extends { vector: number[]; name: { pt: string; en: string } }>(profiles: T[], axes: number[]) {
   return profiles.map((profile) => ({ profile, compatibility: compatibility(axes, profile.vector) }))
-    .sort((a, b) => b.compatibility - a.compatibility || (a.profile.name[language] < b.profile.name[language] ? -1 : a.profile.name[language] > b.profile.name[language] ? 1 : 0));
+    .sort((a, b) => b.compatibility - a.compatibility || (a.profile.name.en < b.profile.name.en ? -1 : a.profile.name.en > b.profile.name.en ? 1 : 0));
 }
 
 const intensities = {
@@ -41,15 +41,14 @@ const intensities = {
 };
 
 export function matchResult(axes: number[], locale: Locale) {
-  const language = locale === "pt" ? "pt" : "en";
-  const matches = rank(catalog.ideologies, axes, language).slice(0, 10).map(({ profile, compatibility }) => {
+  const matches = rank(catalog.ideologies, axes).slice(0, 10).map(({ profile, compatibility }) => {
     const copy = locale === "en" || locale === "pt"
       ? { name: profile.name[locale], category: profile.category[locale], description: profile.description[locale] }
       : translations.ideologies[profile.id as keyof typeof translations.ideologies][locale];
     return { ideologyId: profile.id, ...copy, compatibility };
   });
-  const country = rank(catalog.countries, axes, language)[0];
-  const personality = rank(catalog.personalities, axes, language)[0];
+  const country = rank(catalog.countries, axes)[0];
+  const personality = rank(catalog.personalities, axes)[0];
   const countryCopy = locale === "en" || locale === "pt"
     ? { name: country.profile.name[locale], category: country.profile.category[locale], description: country.profile.description[locale] }
     : translations.countries[country.profile.id as keyof typeof translations.countries][locale];
@@ -82,20 +81,19 @@ export function axisComparison(user: number[], target: number[], locale: Locale)
 }
 
 export function plusReport(axes: number[], locale: Locale) {
-  const language = locale === "pt" ? "pt" : "en";
-  const ideologies = rank(catalog.ideologies, axes, language).slice(0, 10).map(({ profile, compatibility }) => {
+  const ideologies = rank(catalog.ideologies, axes).slice(0, 10).map(({ profile, compatibility }) => {
     const copy = locale === "en" || locale === "pt"
       ? { name: profile.name[locale], description: profile.description[locale] }
       : translations.ideologies[profile.id as keyof typeof translations.ideologies][locale];
     return { id: profile.id, name: copy.name, description: copy.description, compatibility, axes: axisComparison(axes, profile.vector, locale) };
   });
-  const countries = rank(catalog.countries, axes, language).slice(0, 10).map(({ profile, compatibility }) => {
+  const countries = rank(catalog.countries, axes).slice(0, 10).map(({ profile, compatibility }) => {
     const copy = locale === "en" || locale === "pt"
       ? { name: profile.name[locale], description: profile.description[locale] }
       : translations.countries[profile.id as keyof typeof translations.countries][locale];
     return { id: profile.id, name: copy.name, description: copy.description, context: profile.period, compatibility, axes: axisComparison(axes, profile.vector, locale) };
   });
-  const personalities = rank(catalog.personalities, axes, language).slice(0, 10).map(({ profile, compatibility }) => {
+  const personalities = rank(catalog.personalities, axes).slice(0, 10).map(({ profile, compatibility }) => {
     const copy = locale === "en" || locale === "pt"
       ? { name: profile.name[locale], description: profile.description[locale], role: profile.role[locale] }
       : translations.personalities[profile.id as keyof typeof translations.personalities][locale];

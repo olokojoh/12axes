@@ -1,15 +1,15 @@
 # 12Axes On-Page SEO Plan
 
 Mode: BUILD + AUDIT+FIX (2026-08-01)
-Source: `12axes词调研报告_2026-07-31.md`  
-Primary topic: **12axes test**  
+Source: `12axes词调研报告_2026-07-31.md`
+Primary topic (updated 2026-10-07): **12 axes**; same-intent cluster: **12 axes political test / 12axes / 12 axes test / 12 axis**
 Navigation/recovery topic: **12axes vercel app**
 
 ## Page map
 
 | Route | Primary intent | Primary phrase | Required content |
 | --- | --- | --- | --- |
-| `/` | Take the quiz | 12axes test | Test value, 12 axes, three depths, FAQ |
+| `/` | Take the quiz | 12 axes + political-test variants | Test value, 12 axes, three depths, FAQ |
 | `/vercel-app` | Find an independent alternative | 12axes vercel app | Clear independence, available quiz options and test CTA |
 | `/results` | Understand results | 12axes all results | Twelve dimensions, scoring, match meaning |
 | `/ideologies` | Explore possible profiles | 12axes ideologies | Ideology families, per-family descriptions and match-source explanation |
@@ -120,3 +120,12 @@ Console and monitor impressions separately for:
 - `12axes vs 8values`
 
 No keyword or ranking claim is made before production crawl data exists.
+
+## Homepage update — 2026-10-07
+
+- The five localized homepages remain the only entry pages for the broad test cluster. English H1 is “12 Axes Political Test”; title is “12 Axes Political Test — Free 12Axes Quiz”. Localized titles/H1s retain 12 Axes with a translated test description.
+- First-screen copy explains 36/60/240 questions, twelve scores and reference profiles. The tool CTA remains directly below it. FAQ explains the name variants, free basic results, optional paid reports and educational limits; the visible FAQ is the source of JSON-LD.
+- No separate “12 axis” page, keyword-density target or fabricated rating was introduced. Supporting `/results` and ideology/comparison pages retain their distinct explanatory intents.
+- Reference country profiles are not measured population beliefs. Paid-result storage is encrypted with consent; matching runs in the site's Worker, superseding the earlier external-matching description above.
+- Homepage language switching updates the visible tool, document language, title, description, canonical, sharing metadata and homepage Schema in place. SSR for each direct locale URL remains independently crawlable.
+- Current audit and before/after validation: repository-root `onpage-seo-audit.md`.

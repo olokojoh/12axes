@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { localePath, type Locale } from "./i18n";
+import { useEffect, useState } from "react";
+import { isLocale, localePath, type Locale } from "./i18n";
 
 declare global {
   interface Window {
@@ -42,20 +42,16 @@ export function trackEvent(name: string, params: Record<string, string | number 
 
 export function Analytics({ locale }: { locale: Locale }) {
   const [choice, setChoice] = useState<string | null>(null);
-  const bannerRef = useRef<HTMLElement>(null);
-  const text = copy[locale];
-
+  const [displayLocale, setDisplayLocale] = useState(locale);
+  const text = copy[displayLocale];
   useEffect(() => {
-    if (!bannerRef.current) return;
-    const observer = new ResizeObserver(([entry]) => {
-      document.documentElement.style.setProperty("--analytics-banner-height", `${entry.target.getBoundingClientRect().height}px`);
-    });
-    observer.observe(bannerRef.current);
-    return () => {
-      observer.disconnect();
-      document.documentElement.style.removeProperty("--analytics-banner-height");
+    const update = (event: Event) => {
+      const next = (event as CustomEvent).detail;
+      if (isLocale(next)) setDisplayLocale(next);
     };
-  }, [choice]);
+    window.addEventListener("locale-change", update);
+    return () => window.removeEventListener("locale-change", update);
+  }, []);
 
   useEffect(() => {
     const stored = window.localStorage.getItem("12axes:analytics-consent");
@@ -71,8 +67,8 @@ export function Analytics({ locale }: { locale: Locale }) {
 
   if (choice) return null;
   return (
-    <aside className="analytics-consent" aria-label={text.title} ref={bannerRef}>
-      <div><strong>{text.title}</strong><p>{text.body} <a href={localePath(locale, "/privacy")}>{text.privacy}</a></p></div>
+    <aside className="analytics-consent" aria-label={text.title}>
+      <div><strong>{text.title}</strong><p>{text.body} <a href={localePath(displayLocale, "/privacy")}>{text.privacy}</a></p></div>
       <div className="analytics-consent-actions">
         <button className="secondary-button" onClick={() => { window.localStorage.setItem("12axes:analytics-consent", "denied"); setChoice("denied"); }}>{text.reject}</button>
         <button className="primary-button" onClick={() => { window.localStorage.setItem("12axes:analytics-consent", "granted"); enableAnalytics(); setChoice("granted"); }}>{text.accept}</button>

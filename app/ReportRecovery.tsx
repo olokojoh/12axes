@@ -7,7 +7,7 @@ export function ReportRecovery({ locale }: { locale: Locale }) {
   const text = reportUi[locale];
   const [email, setEmail] = useState("");
   const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState<"sent" | "failed" | "">("");
   return <section className="report-recovery">
     <h2>{text.recover}</h2>
     <form onSubmit={async (event) => {
@@ -18,13 +18,13 @@ export function ReportRecovery({ locale }: { locale: Locale }) {
       try {
         const response = await fetch("/api/report/recover", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email }) });
         if (!response.ok) throw new Error();
-        setMessage(text.sent);
-      } catch { setMessage(text.failed); }
+        setMessage("sent");
+      } catch { setMessage("failed"); }
       finally { setBusy(false); }
     }}>
       <label>{text.email}<input type="email" autoComplete="email" required maxLength={254} value={email} onChange={(event) => setEmail(event.target.value)} /></label>
       <button className="secondary-button" disabled={busy}>{busy ? "…" : text.send}</button>
     </form>
-    <p role="status">{message}</p>
+    <p role="status">{message ? text[message] : ""}</p>
   </section>;
 }

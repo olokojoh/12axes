@@ -1,5 +1,6 @@
+import { homeSchema } from "../home-seo";
 import { TestApp } from "../TestApp";
-import { homeMetadata, homeSchema, requestBaseUrl } from "../site";
+import { homeMetadata, requestBaseUrl } from "../site";
 
 export const generateMetadata = () => homeMetadata("en");
 
@@ -8,7 +9,7 @@ export default async function Home() {
   return (
     <>
       <TestApp locale="en" />
-      {schema.map((item, index) => <script key={index} type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(item) }} />)}
+      {schema.map((item, index) => <script key={index} data-home-schema={index} type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(item) }} />)}
     </>
   );
 }

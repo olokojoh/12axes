@@ -8,8 +8,9 @@ import { trackEvent } from "./Analytics";
 import { PlusReport } from "./PlusReport";
 import { plusCopy } from "./plus-copy";
 import type { PlusReportData } from "./lib/matching";
-import { BrlEstimate } from "./BrlEstimate";
-import { axisExplanations, contactLabels, copy, localeNames, localePath, locales, publicContactUrl, type Locale } from "./i18n";
+import { homeTitles, homeDescriptions, homeSchema } from "./home-seo";
+import { CurrencyEstimate } from "./CurrencyEstimate";
+import { axisExplanations, contactLabels, copy, htmlLang, localeNames, localePath, locales, publicContactUrl, type Locale } from "./i18n";
 
 type Question = {
   id: string;
@@ -155,7 +156,10 @@ function initials(name: string) {
   return name.split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase();
 }
 
-export function TestApp({ locale }: { locale: Locale }) {
+export function TestApp({ locale: initialLocale }: { locale: Locale }) {
+  const [locale, setLocale] = useState(initialLocale);
+  const [dataLocale, setDataLocale] = useState(initialLocale);
+  const [resultLocale, setResultLocale] = useState(initialLocale);
   const text = copy[locale];
   const [mode, setMode] = useState<Mode>("home");
   const [data, setData] = useState<QuizData | null>(null);
@@ -178,7 +182,7 @@ export function TestApp({ locale }: { locale: Locale }) {
   const [shareConsent, setShareConsent] = useState(false);
   const [reportConsent, setReportConsent] = useState(true);
   const [reportPending, setReportPending] = useState(false);
-  const ctaRef = useRef<HTMLDivElement>(null);
+  const ctaRef = useRef<HTMLButtonElement>(null);
   const [paid, setPaid] = useState(false);
   const [plan, setPlan] = useState<"basic" | "plus">("basic");
   const [plus, setPlus] = useState<PlusReportData | null>(null);
@@ -202,10 +206,12 @@ export function TestApp({ locale }: { locale: Locale }) {
   }
 
   async function loadData() {
-    if (data) return data;
+    if (data && dataLocale === locale) return data;
     const response = await fetch(`/data/quiz.${locale}.json`);
     const payload = await response.json() as QuizData;
+    if (!response.ok) throw new Error();
     setData(payload);
+    setDataLocale(locale);
     return payload;
   }
 
@@ -279,6 +285,7 @@ export function TestApp({ locale }: { locale: Locale }) {
       if (!response.ok) throw new Error();
       const payload = await response.json() as Result;
       setResult(payload);
+      setResultLocale(locale);
       setMode("results");
       trackEvent("result_preview_view", { variant: experimentVariant, language: locale, device: deviceClass(), quiz_length: length, entry_type: entryType });
     } catch {
@@ -336,6 +343,7 @@ export function TestApp({ locale }: { locale: Locale }) {
       setResultAxes(payload.axes);
       setResultQuizLength(payload.quizLength);
       setResult(payload.result);
+      setResultLocale(locale);
       setMode("results");
       trackEvent("full_report_view", { plan: payload.plan, variant: experimentVariant, language: locale, device: deviceClass(), quiz_length: payload.quizLength });
     } catch {
@@ -354,7 +362,7 @@ export function TestApp({ locale }: { locale: Locale }) {
       const response = await fetch("/api/checkout", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ axes: resultAxes, locale, variant: experimentVariant, quizLength: resultQuizLength, consent: reportConsent, plan: selectedPlan, ...(paid && reportToken ? { upgradeToken: reportToken } : {}) }) });
       if (!response.ok) throw new Error();
       const payload = await response.json() as { url: string };
-      window.location.href = payload.url;
+      window.location.assign(payload.url);
     } catch {
       setError(paidText.checkoutError);
       setCheckoutBusy(false);
@@ -443,8 +451,69 @@ export function TestApp({ locale }: { locale: Locale }) {
   function switchLocale(next: string) {
     if (!locales.includes(next as Locale)) return;
     const currentPath = window.location.pathname.replace(/^\/(pt|es|ru|zh)(?=\/|$)/, "") || "/";
-    window.location.href = localePath(next as Locale, currentPath) + window.location.search + window.location.hash;
+    window.history.replaceState(window.history.state, "", localePath(next as Locale, currentPath) + window.location.search + window.location.hash);
+    const target = next as Locale;
+    setLocale(target);
+    setError(current => {
+      for (const source of locales) {
+        for (const key of ["loadError", "resultError", "answerError"] as const) if (current === auxiliaryUi[source][key]) return auxiliaryUi[target][key];
+        for (const key of ["reportError", "checkoutError", "shareError"] as const) if (current === reportUi[source][key]) return reportUi[target][key];
+      }
+      return current;
+    });
+    if (currentPath === "/" || currentPath === "/results") {
+      const title = currentPath === "/" ? homeTitles[target] : `${copy[target].resultTitle} — 12Axes`;
+      const description = currentPath === "/" ? homeDescriptions[target] : copy[target].resultLead;
+      document.title = title;
+      document.querySelector('meta[name="description"]')?.setAttribute("content", description);
+      const canonical = new URL(localePath(target, currentPath), window.location.origin).href;
+      document.querySelector('link[rel="canonical"]')?.setAttribute("href", canonical);
+      for (const selector of ['meta[property="og:title"]', 'meta[name="twitter:title"]']) document.querySelector(selector)?.setAttribute("content", title);
+      for (const selector of ['meta[property="og:description"]', 'meta[name="twitter:description"]']) document.querySelector(selector)?.setAttribute("content", description);
+      document.querySelector('meta[property="og:url"]')?.setAttribute("content", canonical);
+      homeSchema(target, new URL(window.location.origin)).forEach((schema, index) => {
+        const node = document.querySelector(`script[data-home-schema="${index}"]`);
+        if (node) node.textContent = JSON.stringify(schema);
+      });
+    }
+    document.documentElement.lang = htmlLang[next as Locale];
+    window.dispatchEvent(new CustomEvent("locale-change", { detail: next }));
   }
+
+  useEffect(() => {
+    const controller = new AbortController();
+    async function translate() {
+      try {
+        if (data && dataLocale !== locale) {
+          const response = await fetch(`/data/quiz.${locale}.json`, { signal: controller.signal });
+          if (!response.ok) throw new Error();
+          const translated = await response.json() as QuizData;
+          if (controller.signal.aborted) return;
+          const byId = new Map(translated.questions.map(question => [question.id, question]));
+          setData(translated);
+          setDataLocale(locale);
+          setQuestions(current => current.map(question => byId.get(question.id)!));
+        }
+        if (result && resultLocale !== locale) {
+          const response = await fetch(paid ? "/api/report" : "/api/match", {
+            method: "POST", signal: controller.signal, headers: { "content-type": "application/json" },
+            body: JSON.stringify(paid ? { token: reportToken, locale } : { axes: resultAxes, locale }),
+          });
+          if (!response.ok) throw new Error();
+          const payload = await response.json() as Result & { status: string; result: Result; plus: PlusReportData | null };
+          if (controller.signal.aborted) return;
+          if (paid && payload.status !== "paid") throw new Error();
+          setResult(paid ? payload.result : payload);
+          if (paid) setPlus(payload.plus);
+          setResultLocale(locale);
+        }
+      } catch {
+        if (!controller.signal.aborted) setError(auxiliaryUi[locale].loadError);
+      }
+    }
+    void translate();
+    return () => controller.abort();
+  }, [locale, data, dataLocale, result, resultLocale, paid, reportToken, resultAxes]);
 
   const currentQuestion = questions[questionIndex];
   const currentAxis = useMemo(() => data?.axes.find((axis) => axis.id === currentQuestion?.axisId), [data, currentQuestion]);
@@ -477,6 +546,7 @@ export function TestApp({ locale }: { locale: Locale }) {
   if (mode === "loading") {
     return (
       <main className="center-shell loading-shell">
+        <AppHeader locale={locale} onLocale={switchLocale} compact onHome={() => setMode("home")} />
         <div className="loading-mark"><span /></div>
         <h1>12 Axes</h1>
         <p>{reportPending ? paidText.pending : text.loading}</p>
@@ -565,13 +635,18 @@ export function TestApp({ locale }: { locale: Locale }) {
                   window.setTimeout(() => setPrivateLinkCopied(false), 1800);
                 } catch { setError(paidText.shareError); }
               }}>{privateLinkCopied ? text.copied : privateLinkLabel[locale]}</button>
-            </div>{plan === "basic" && <div className="upgrade-offer"><h3>{plusText.plus}</h3><p>{plusText.upgradeNote}</p><ul>{plusText.features.map((feature) => <li key={feature}>{feature}</li>)}</ul><label className="consent-label"><input type="checkbox" checked={reportConsent} onChange={(event) => setReportConsent(event.target.checked)} />{paidText.consent}</label><button className="primary-button" disabled={!reportConsent || checkoutBusy} onClick={() => startCheckout("plus")}>{checkoutBusy ? paidText.wait : plusText.upgrade}</button>{locale === "pt" && <BrlEstimate amount={5} />}<p className="billing-note">{paidText.currency}</p><div className="billing-links"><a href={localePath(locale, "/pricing")}>{paidText.pricing}</a><a href={localePath(locale, "/refund")}>{paidText.refund}</a><a href={localePath(locale, "/privacy")}>{paidText.privacy}</a></div></div>}</> : <>
+            </div>{plan === "basic" && <div className="upgrade-offer"><h3>{plusText.plus}</h3><p>{plusText.upgradeNote}</p><ul>{plusText.features.map((feature) => <li key={feature}>{feature}</li>)}</ul><label className="consent-label"><input type="checkbox" checked={reportConsent} onChange={(event) => setReportConsent(event.target.checked)} />{paidText.consent}</label><button className="primary-button" disabled={!reportConsent || checkoutBusy} onClick={() => startCheckout("plus")}>{checkoutBusy ? paidText.wait : plusText.upgrade}</button><CurrencyEstimate locale={locale} amount={5} /><p className="billing-note">{paidText.currency}</p><div className="billing-links"><a href={localePath(locale, "/pricing")}>{paidText.pricing}</a><a href={localePath(locale, "/refund")}>{paidText.refund}</a><a href={localePath(locale, "/privacy")}>{paidText.privacy}</a></div></div>}</> : <>
+              <label className="consent-label purchase-consent"><input type="checkbox" checked={reportConsent} onChange={(event) => setReportConsent(event.target.checked)} /><span>{paidText.consent} <a href={localePath(locale, "/privacy")}>{paidText.privacy}</a></span></label>
               <div className="plan-options">
                 {(["basic", "plus"] as const).map((reportPlan) => (
                   <article id={`report-${reportPlan}`} className={reportPlan === "plus" ? "plus-plan-card" : undefined} key={reportPlan}>
                     <span className="plan-attention-star" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m12 1.75 2.95 5.98 6.6.96-4.78 4.66 1.13 6.58L12 16.82l-5.9 3.1 1.13-6.58-4.78-4.66 6.6-.96L12 1.75Z" /></svg></span>
                     <h3>{reportPlan === "basic" ? plusText.basic : plusText.plus}</h3>
-                    <p className="plan-price">{reportPlan === "basic" ? plusText.basicPrice : plusText.price}</p>
+                    <p className="plan-price">{reportPlan === "basic" ? plusText.basicAmount : plusText.plusAmount}</p>
+                    <button ref={reportPlan === "basic" ? ctaRef : undefined} className="primary-button report-buy-button" disabled={!reportConsent || checkoutBusy} onClick={() => startCheckout(reportPlan)}>
+                      <span>{checkoutBusy ? paidText.wait : plusText.purchase} · <b>{reportPlan === "basic" ? plusText.basicAmount : plusText.plusAmount}</b><span aria-hidden="true"> →</span></span>
+                    </button>
+                    <div className="plan-estimate" data-estimated={locale !== "en"}><CurrencyEstimate locale={locale} amount={reportPlan === "basic" ? 4.99 : 9.99} /></div>
                     <ul className="plan-features">
                       {[...plusText.basicFeatures, ...plusText.extraFeatures].map((feature, index) => {
                         const included = reportPlan === "plus" || index < plusText.basicFeatures.length;
@@ -586,20 +661,11 @@ export function TestApp({ locale }: { locale: Locale }) {
                   </article>
                 ))}
               </div>
-              {locale === "pt" && <div className="plan-estimates"><BrlEstimate /><BrlEstimate amount={9.99} /></div>}
               <p className="billing-note">{paidText.currency}</p>
               <div className="billing-links"><a href={localePath(locale, "/pricing")}>{paidText.pricing}</a><a href={localePath(locale, "/refund")}>{paidText.refund}</a><a href={localePath(locale, "/privacy")}>{paidText.privacy}</a></div>
             </>}
           </section>
-          {!paid && <div className="plan-checkout" ref={ctaRef}>
-            <label className="consent-label"><input type="checkbox" checked={reportConsent} onChange={(event) => setReportConsent(event.target.checked)} /><span>{paidText.consent} <a href={localePath(locale, "/privacy")}>{paidText.privacy}</a></span></label>
-            <div className="plan-checkout-buttons">
-              {(["basic", "plus"] as const).map((reportPlan) => <button key={reportPlan} className="primary-button report-buy-button" disabled={!reportConsent || checkoutBusy} onClick={() => startCheckout(reportPlan)}>
-                <span className="checkout-plan-name">{reportPlan === "basic" ? plusText.basic : plusText.plus}</span>
-                <span>{checkoutBusy ? paidText.wait : plusText.purchase} · <b>{reportPlan === "basic" ? plusText.basicAmount : plusText.plusAmount}</b><span aria-hidden="true"> →</span></span>
-              </button>)}
-            </div>
-          </div>}
+
         </div>
         <section className="result-intro">
           <span className="eyebrow">{text.resultEyebrow}</span>
@@ -640,7 +706,7 @@ export function TestApp({ locale }: { locale: Locale }) {
         </div>
         {error && <p className="inline-error" role="alert">{error}</p>}
         <ReportRecovery locale={locale} />
-        <Footer locale={locale} />
+        <Footer locale={locale} onLocale={switchLocale} />
       </main>
     );
   }
@@ -651,7 +717,7 @@ export function TestApp({ locale }: { locale: Locale }) {
       <section className="hero" id="content">
         <div className="hero-copy">
           <span className="eyebrow">{text.eyebrow}</span>
-          <h1>{text.titleA}<br /><em>{text.titleB}</em>?</h1>
+          <h1>{text.titleA}<br /><em>{text.titleB}</em></h1>
           <p>{text.lead}</p>
           <div className="hero-actions">
             <button className="primary-button" onClick={() => setMode("format")}>{text.start} →</button>
@@ -697,7 +763,7 @@ export function TestApp({ locale }: { locale: Locale }) {
         <span className="eyebrow">{text.support}</span><h2>{text.supportTitle}</h2><p>{text.supportLead}</p>
         <div className="privacy-pill">⌁ {auxiliaryUi[locale].privacy}</div>
       </section>
-      <Footer locale={locale} />
+      <Footer locale={locale} onLocale={switchLocale} />
       {reportToken && <ReportRecovery locale={locale} />}
       {error && <p className="inline-error floating-error" role="alert">{error}</p>}
     </main>
@@ -745,18 +811,18 @@ function ResultMatch({ match, locale, label, large = false }: { match: Match; lo
     <article className={`match-card ${large ? "large" : ""}`}>
       {label && (large ? <h1 className="match-label">{label}</h1> : <span className="eyebrow">{label}</span>)}
       <div className="match-title"><div><small>{match.category}</small><h2>{match.name}</h2></div><div className="mini-ring"><b>{Math.round(match.compatibility)}%</b><i>{auxiliaryUi[locale].match}</i></div></div>
-      <p>{match.description}</p>
+      {large ? <details className="match-description"><summary>{({ en: "About this match", pt: "Sobre este perfil", es: "Sobre este perfil", ru: "Об этом профиле", zh: "查看匹配说明" })[locale]}</summary><p>{match.description}</p></details> : <p>{match.description}</p>}
     </article>
   );
 }
 
-function Footer({ locale }: { locale: Locale }) {
+function Footer({ locale, onLocale }: { locale: Locale; onLocale: (locale: string) => void }) {
   const [results, ideologies, privacy, license] = auxiliaryUi[locale].footer;
   return (
     <footer>
       <a className="logo" href={localePath(locale)}><b>12</b><span>axes</span></a>
       <p>{copy[locale].footer}</p>
-      <nav><a href={localePath(locale, "/vercel-app")}>12axes Vercel app</a><a href={localePath(locale, "/results")}>{results}</a><a href={localePath(locale, "/ideologies")}>{ideologies}</a><a href={localePath(locale, "/12axes-vs-9axes")}>12Axes vs 9Axes</a><a href={localePath(locale, "/12axes-vs-8values")}>12Axes vs 8values</a><a href={localePath(locale, "/privacy")}>{privacy}</a><a href={localePath(locale, "/license")}>{license}</a><a href={publicContactUrl}>{contactLabels[locale]}</a>{commerceSlugs.filter((item) => item !== "privacy").map((item) => <a key={item} href={localePath(locale, "/" + item)}>{commerceLabels[locale][item]}</a>)}{locales.map((item) => <a href={localePath(item)} aria-current={item === locale ? "page" : undefined} key={item}>{localeNames[item]}</a>)}</nav>
+      <nav><a href={localePath(locale, "/vercel-app")}>12axes Vercel app</a><a href={localePath(locale, "/results")}>{results}</a><a href={localePath(locale, "/ideologies")}>{ideologies}</a><a href={localePath(locale, "/12axes-vs-9axes")}>12Axes vs 9Axes</a><a href={localePath(locale, "/12axes-vs-8values")}>12Axes vs 8values</a><a href={localePath(locale, "/privacy")}>{privacy}</a><a href={localePath(locale, "/license")}>{license}</a><a href={publicContactUrl}>{contactLabels[locale]}</a>{commerceSlugs.filter((item) => item !== "privacy").map((item) => <a key={item} href={localePath(locale, "/" + item)}>{commerceLabels[locale][item]}</a>)}{locales.map((item) => <a href={localePath(item)} onClick={(event) => { if (!event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) { event.preventDefault(); onLocale(item); } }} aria-current={item === locale ? "page" : undefined} key={item}>{localeNames[item]}</a>)}</nav>
     </footer>
   );
 }

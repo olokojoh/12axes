@@ -40,16 +40,16 @@ export async function verifyQuiz(page, base, { locales = ["en", "pt", "es", "ru"
     await page.waitForSelector(".result-shell", { timeout: 15000 });
     await page.waitForFunction(() => Math.abs(window.scrollY) < 1);
     assert.equal(await page.evaluate(() => document.querySelector("[role=alert]")?.textContent ?? null), null);
-    assert.equal(await page.evaluate(() => document.querySelectorAll(".plan-checkout button").length), 2);
+    assert.equal(await page.evaluate(() => document.querySelectorAll(".plan-options button").length), 2);
     assert.equal(await page.evaluate(() => document.querySelector(".plan-overview") === null), true);
-    assert.equal(await page.evaluate(() => document.querySelector(".plan-checkout .consent-label input")?.checked), true);
+    assert.equal(await page.evaluate(() => document.querySelector(".purchase-consent input")?.checked), true);
     assert.equal(await page.evaluate(() => document.querySelectorAll(".plan-attention-star").length), 2);
     assert.deepEqual(await page.evaluate(() => [...document.querySelectorAll(".plan-options article")].map(card => ({
       included: card.querySelectorAll(".feature-included").length,
       excluded: card.querySelectorAll(".feature-excluded").length,
     }))), [{ included: 4, excluded: 3 }, { included: 7, excluded: 0 }]);
     assert.equal(await page.evaluate(() => {
-      const buttons = [...document.querySelectorAll(".plan-checkout button")].map(button => button.getBoundingClientRect());
+      const buttons = [...document.querySelectorAll(".plan-options button")].map(button => button.getBoundingClientRect());
       const banner = document.querySelector(".analytics-consent")?.getBoundingClientRect();
       const bottom = banner ? Math.min(innerHeight, banner.top) : innerHeight;
       return buttons.length === 2 && Math.abs(buttons[0].top - buttons[1].top) < 1

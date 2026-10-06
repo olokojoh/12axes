@@ -12,8 +12,8 @@ test("renders the free quiz and SEO contract without advertising or automatic an
   assert.equal(response.status, 200);
   const html = await response.text();
   assert.match(html, /<html lang="en">/);
-  assert.match(html, /<title>12Axes Test — Free Political Ideology Quiz in 12 Axes<\/title>/);
-  assert.match(html, /<h1[^>]*>.*Do you really know your.*political ideology/s);
+  assert.match(html, /<title>12 Axes Political Test — Free 12Axes Quiz<\/title>/);
+  assert.match(html, /<h1[^>]*>12 Axes<br\/><em>Political Test<\/em><\/h1>/);
   assert.match(html, /rel="canonical"/);
   assert.match(html, /hrefLang="pt-BR"/);
   assert.match(html, /"@type":"WebApplication"/);
@@ -25,8 +25,8 @@ test("renders localized homes and SEO pages", async () => {
   const home = await (await render("/zh")).text();
   const page = await (await render("/es/ideologies")).text();
   assert.match(home, /<html lang="zh-CN">/);
-  assert.match(home, /12Axes 测试中文版/);
-  assert.match(home, /你真的了解自己的/);
+  assert.match(home, /12 Axes 中文版/);
+  assert.match(home, /12 轴政治测试/);
   assert.match(page, /<html lang="es">/);
   assert.match(page, /Ideologías de 12Axes/);
 });
@@ -80,11 +80,19 @@ test("preserves published seller record without loading advertisements", async (
 });
 
 test("keeps all five existing question banks intact pending content review", async () => {
+  let structure;
   for (const locale of ["en", "pt", "es", "ru", "zh"]) {
     const quiz = JSON.parse(await readFile(new URL(`../public/data/quiz.${locale}.json`, import.meta.url), "utf8"));
     assert.equal(quiz.questions.length, 240);
     assert.equal(quiz.axes.length, 12);
     assert.equal(quiz.answerOptions.length, 5);
+    const current = {
+      questions: quiz.questions.map(({ id, axisId, agreePole, weight }) => ({ id, axisId, agreePole, weight })),
+      axes: quiz.axes.map(axis => axis.id),
+      options: quiz.answerOptions.map(({ id, scoreTowardAgreement }) => ({ id, scoreTowardAgreement })),
+    };
+    if (structure) assert.deepEqual(current, structure, "Language changes must preserve question IDs, scoring and axis order");
+    structure = current;
   }
 });
 
@@ -110,6 +118,9 @@ test("matching profiles and API results are localized in all five languages", as
     });
     assert.equal(response.status, 200);
     responses[locale] = await response.json();
+  }
+  for (const locale of ["pt", "es", "ru", "zh"]) {
+    assert.deepEqual(responses[locale].matches.map(match => [match.ideologyId, match.compatibility]), responses.en.matches.map(match => [match.ideologyId, match.compatibility]));
   }
   const ideologyId = responses.en.topMatch.ideologyId;
   const countryId = catalog.countries.find((item) => item.name.en === responses.en.topCountryMatch.name).id;
