@@ -196,7 +196,7 @@ export function TestApp({ locale: initialLocale }: { locale: Locale }) {
   const plusText = plusCopy[locale];
   const deepText = deepCopy[locale];
   const [deep, setDeep] = useState<DeepReportData | null>(null);
-  const [answerConsent, setAnswerConsent] = useState(false);
+  const [answerConsent, setAnswerConsent] = useState(true);
   const [hasOriginal, setHasOriginal] = useState(false);
   const [originalView, setOriginalView] = useState(false);
   const [entitlement, setEntitlement] = useState<ReportPlan>("basic");
@@ -311,7 +311,7 @@ export function TestApp({ locale: initialLocale }: { locale: Locale }) {
       setSaveLocal(true);
       setLocalSaved(false);
       setShareId(null); setShareConsent(false); setCopied(false); setPrivateLinkCopied(false);
-      setPaid(false); setPlan("basic"); setPlus(null); setDeep(null); setReportToken(null); setHasOriginal(false); setOriginalView(false); setEntitlement("basic"); setAnswerConsent(false);
+      setPaid(false); setPlan("basic"); setPlus(null); setDeep(null); setReportToken(null); setHasOriginal(false); setOriginalView(false); setEntitlement("basic"); setAnswerConsent(true);
       setQuestions(chosen);
       setAnswers({});
       setQuestionIndex(0);
@@ -532,7 +532,7 @@ export function TestApp({ locale: initialLocale }: { locale: Locale }) {
     setResultAxes([]);
     setPaid(false);
     setPlan("basic");
-    setPlus(null); setDeep(null); setHasOriginal(false); setOriginalView(false); setEntitlement("basic"); setAnswerConsent(false); setUpgradeContext(null);
+    setPlus(null); setDeep(null); setHasOriginal(false); setOriginalView(false); setEntitlement("basic"); setAnswerConsent(true); setUpgradeContext(null);
     discardLocal();
     setReportToken(null);
     setReportPending(false);
