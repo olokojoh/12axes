@@ -1,22 +1,154 @@
-# Google Ads setup — 2026-10-08
+# 12Axes Google Ads 执行记录与操作手册
 
-The requested experiment is one Brazil/Portuguese Search campaign, exact 12axes-related keywords, one responsive search ad, Google Search only, Maximize Clicks with a US$0.04 CPC cap, US$5 average daily budget, and a seven-day initial observation period. US$30 is a review threshold, not a platform hard spending cap.
+更新：2026-10-08（北京时间）。按最新流量，主市场为美国英文。
 
-## Completed setup
+## 当前结果
 
-- GA4 property `549901989` and stream `15438421657` verified against the existing measurement ID.
-- Disabled Enhanced Measurement so automatic form/outbound/history events cannot bypass the source filters.
-- Linked Google Ads account `166-761-0037`; personalization and embedded GA4 management access disabled, auto-tagging selected.
-- Imported `12axes.net (web) purchase` (conversion ID `7827714845`).
-- Added separate optional ad measurement consent and a server-confirmed, single-claim purchase receipt. No political results, report credentials or email are sent to Google.
-- Applied additive D1 migration `0006_purchase_measurement.sql` to the existing shared production/preview database.
+- 广告系列：`12axes_US_EN_Search_Exact_Test`，ID `24324270945`。
+- 已发布提交审核，随后暂停；刷新后确认“已暂停”。广告和三个站内链接均显示“审核中”。
+- 检查时展示 0、点击 0、费用 US$0.00，没有进行真实扣款测试。
+- 网站购买追踪已上线；GA4 普通事件已收到，真实购买尚未验收。因此当前不能称为已开始投放或归因已验证。
+- [打开广告系列](https://ads.google.com/aw/adgroups?campaignId=24324270945&ocid=8104186451&authuser=0)
 
-## Verification and boundaries
+## 对原建议的判断
 
-- Server tests cover consent, unpaid/refunded/test orders, ownership, concurrent duplicate claims, and actual upgrade amounts.
-- Client tests cover attribution consent, private URL filtering, preview isolation, loading/return timing and duplicate reporting.
-- Payment status continues to come from the existing signed Stripe webhook. No production charge was made for verification.
-- Browser measurements can undercount; refunds remain reconciled in Stripe. See `GA4.md`.
-- Google political-content policy, Brazil section, inspected in Chrome: prohibits political-electoral ads featuring elections, political parties/federations/coalitions, elected positions, government proposals, legislative bills, voting/political rights or electoral matters. An educational label alone is not an exemption. Source: https://support.google.com/adspolicy/answer/6014595?hl=en#zippy=%2Cbrazil
+可以低成本、小范围试验，暂不适合按点击量扩预算。原文经济数据按用户提供的事实采用，但收入保本 CPC 不等于利润保本 CPC，还要扣支付手续费、退款、税费和边际服务成本。US$4.99 是售价，不能直接当作可接受 CPA。
 
-Campaign setup, deployment evidence, and final activation status will be recorded after verification.
+美国自然排名已经不错，品牌相关词广告可能替代原本免费的点击。Ads 归因购买不能单独证明新增销量，应同时看美国自然点击、总订单和净贡献。短期小样本只能提供方向，不能证明因果。
+
+US$0.04 是保守的试验上限，不保证盈利。若没有展示，不自动加价或扩大匹配。智能出价不机械套用“全站累计 50 单”，需要可用、相关的广告转化数据和合理预算。
+
+## 本轮市场依据
+
+以下数据在已登录 Chrome 中读取。GA4 与 GSC 的日期和定义不同，不直接比较总量。
+
+| 来源与窗口 | 美国 | 巴西 | 其他结论 |
+| --- | --- | --- | --- |
+| GA4，10 月 1–7 日 | 10,471 活跃用户，55.37% | 596，3.15% | 英文 13,389，70.8%；葡语 712，3.76% |
+| GSC，最新可用七天 9 月 28–10 月 4 日 | 21,411 点击，129,787 展示 | 4,484 点击，30,589 展示 | 美国 CTR 16.5%，平均排名 3.8 |
+
+GSC 美国首页获得 18,882 次点击。主要查询为 `12 axes political test`（9,564）、`12 axes test`（4,774）、`12 axes`（1,346）、`12 axis political test`（837）。因此使用英文首页作为落地页。
+
+旧 GA4 购买收入为零不能解释为实际没有销售，当时购买追踪尚未补齐。
+
+## 已保存的广告配置
+
+| 项目 | 配置 |
+| --- | --- |
+| Ads 账号 | `166-761-0037` |
+| 类型 / 网络 | 搜索；仅 Google 搜索，关闭搜索合作伙伴、展示网络 |
+| 国家 / 位置 | 美国；位于或经常位于目标位置的人 |
+| 语言 / 落地页 | 英语；`https://12axes.net/` |
+| 出价 | 尽可能争取更多点击次数，CPC 出价上限 US$0.04 |
+| 预算 | 平均每天 US$5 |
+| 日期 | 2026-10-09 至 2026-10-15，账号北美太平洋时间（当时 GMT-07:00） |
+| 当前状态 | 已暂停，到达开始日期也不会自行恢复 |
+| 转化目标 | 广告系列专属，仅 `12axes.net (web) purchase` |
+| 扩展与受众 | AI Max、文案适配、最终网址扩展关闭；未添加细分受众或再营销列表 |
+| URL 后缀 | `utm_source=google&utm_medium=cpc&utm_campaign=us_en_exact_test&utm_content={creative}` |
+
+US$5 是平均每日预算，不是每日硬上限，平台单日可能超投。US$30 是复盘阈值，不是已经配置的实时硬止损。日期不代表严格 US$35 总额上限。恢复前重新确认日期和预算。
+
+一个广告组、一个自适应搜索广告。五个完全匹配词：
+
+```text
+[12 axes political test]
+[12 axes test]
+[12 axes]
+[12 axis political test]
+[12axes]
+```
+
+完全匹配仍可覆盖含义相同的近似变体，需要检查实际搜索字词。
+
+标题：
+
+```text
+12 Axes Political Test
+12Axes.net | Free Test
+Free Basic Results
+36, 60 or 240 Questions
+No Account Required
+Optional Paid Reports
+Explore Your Views
+```
+
+描述：
+
+```text
+Answer questions and explore your views across 12 axes. Free test and basic results.
+No account needed. Optional paid reports from US$4.99. One-time payment, no subscription.
+```
+
+显示路径 `test / 12-axes`，实际最终 URL 是首页。已发布后确认关联的英文站内链接：
+
+- About 12Axes.net → `https://12axes.net/about`
+- Report Pricing → `https://12axes.net/pricing`
+- Help and Contact → `https://12axes.net/contact`
+
+## 购买追踪与部署证据
+
+- GA4 账号 `385899329`，资源 `549901989`，数据流 `15438421657`，衡量 ID `G-CE8EXPY4K6`。
+- Enhanced Measurement 已关闭，避免自动表单、站外点击或历史事件绕过过滤。
+- Ads 已关联，自动标记开启；个性化广告和嵌入式 GA4 管理权限关闭。
+- 购买转化 ID `7827714845`；已回读确认“主要”，实际事件金额与币种、每次计数、无价值时 US$0；不设为共享账号的默认目标。
+- 正式域名在分析同意后加载 GA4，广告衡量需要独立同意。Google Signals、广告个性化关闭。
+- 答案、政治标签、分数、邮箱、私有报告链接不发送给 Google；页面 URL 经过过滤。
+- 购买要求服务器确认正式付款成功并在原标签页返回。服务器原子领取一次收据，避免刷新或恢复报告重复计单。
+- 升级上报实际补付金额；测试 Checkout 不计正式购买。退款不自动回传，财务真值仍以 Stripe 和订单记录为准。
+- 提交 `e0caec8b0a3ba05f157f89c3d1bdb3751f74c986` 已推送 dev/main。
+- 生产部署 `4185d245-7e83-4871-9217-35c24d71e12b`，成功时间 `2026-10-07T16:46:43Z`，正式域名 `https://12axes.net`。
+- D1 增量迁移 `0006_purchase_measurement.sql` 已应用。
+- 生产构建、TypeScript、46 项测试及额外 3 项客户端测试通过；lint 无错误。
+- 正式站 `gtag/js` 返回 200，GA4 `g/collect` 返回 204；载荷为正确衡量 ID、`en=page_view`、`npa=1`、清理后的 `/privacy` URL、通用标题 `12Axes`、空 referrer。
+- GA4 Realtime 收到 `page_view`、`quiz_start`、`quiz_complete` 等事件，检查时没有 `purchase`。
+
+浏览器拦截、不同意、付款后不返回等会漏报；收据领取不等于 Google 收到。不伪造购买，不把完成测验算作付费。
+
+## 按钮操作手册
+
+### 查看审核
+
+1. Google Ads 确认账号 `166-761-0037`。
+2. 左侧“广告系列” → 展开“广告系列” → “广告”。顶部选择本系列。
+3. 查看“状态”列；若拒登，点状态读取具体原因。
+4. “素材资源” → “素材资源”，检查三个站内链接。
+
+本轮查看了[Google 官方政策](https://support.google.com/adspolicy/answer/6014595?hl=en#zippy=%2Cunited-states-us-election-ads)。美国选举广告定义涉及现任民选公职人员、候选人、政党、已列入选票的提案等。教育用途不能保证免审核，按实际审核结果处理，不通过改地区或掩饰内容绕过限制。
+
+### 验证真实购买
+
+1. Stripe 若出现登录页，正常登录。本轮恢复 Google 登录后停在验证器的 6 位验证码，需账号持有人直接完成。
+2. 等待一笔新部署后的正常真实订单；购买者需同意分析、在原标签页付款并返回报告。不要用旧报告恢复制造购买。
+3. GA4 → “Reports” → “Realtime overview” → “Event count by Event name” → `purchase`，查看参数。
+4. 核对交易 ID、金额和 USD 与 Stripe 同一订单一致；刷新报告不应新增购买。
+5. Ads → “目标” → “转化” → “摘要” → 展开“购买” → `12axes.net (web) purchase`，确认主要操作、动态价值和计数设置。导入报告可能延迟。
+
+自然订单能验证 GA4 购买链路，但不会成为 Ads 归因购买。真实广告归因需在启动小额试验后，由真实广告访问和购买验证；不点击自己的广告，不伪造 gclid。不能要求广告从未投放时就已经有 Ads 转化。
+
+### 满足条件后启用
+
+条件：广告和素材通过审核；新真实 GA4 购买已与订单核对；仍采用上述预算和市场。
+
+1. “广告系列” → “广告系列” → 点击系列名称 → 顶部“设置”。
+2. “开始日期和结束日期” → 根据实际启动时间调整，保留约七天窗口 → 保存。当前是 10 月 9–15 日，过期后不能直接启用。
+3. “出价” → 确认“设置每次点击费用的出价上限”勾选、值 `0.04`；“预算”确认为 `5.00`。
+4. 返回系列列表 → 点击名称左侧暂停图标 → “启用” → 刷新确认。
+5. 低出价可能拿不到展示，批准与启用不保证流量。
+
+### 每日检查与停止
+
+1. 打开本系列，右上角日期改“今天”或“昨天”，看费用、点击、转化次数、每次转化费用。
+2. “列” → 修改列，加入转化价值、转化价值/费用。只用购买评估销售。
+3. “洞察和报告” → “搜索字词”，将明显无关搜索选中 → “添加为否定关键字” → 本广告系列。
+4. 确认报表只看本系列，避免共享账号其他站点混入。
+5. 累计费用接近 US$30 先暂停复盘。无购买或净贡献不覆盖广告费时，不加预算；暂停后继续核对归因延迟产生的订单。
+6. 暂停：“广告系列”列表 → 名称左侧状态图标 → “暂停” → 刷新确认。
+
+`净贡献 = 实收 - 退款 - 支付手续费 - 税费及其他边际成本 - 广告费用`。ROAS 大于 1 也未必盈利。若付费点击上升、自然点击下降、总订单不增，应考虑广告替代自然流量。
+
+## 尚待完成
+
+Google 审核；新真实购买与 GA4 对账（Stripe 页面尚需验证码）；启动后首笔真实广告购买归因。
+
+当前是完整、可审核和可恢复的暂停广告系列。本轮未启用持续消耗，未设置后台定时监控。

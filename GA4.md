@@ -7,6 +7,7 @@
 - Enhanced Measurement: disabled in GA4 on 2026-10-08; only explicit filtered events are collected.
 - Google Ads account `166-761-0037` linked on 2026-10-08 with auto-tagging, personalized advertising disabled, and embedded Analytics management access disabled.
 - Imported purchase conversion: `12axes.net (web) purchase`, conversion ID `7827714845`.
+- Ads action is Primary, uses actual value/currency with US$0 fallback, and counts every purchase. It is not an account-wide default; campaign `12axes_US_EN_Search_Exact_Test` (`24324270945`) uses its own purchase-only goal.
 
 Analytics loads only on `12axes.net` and after analytics consent. Separate ad-measurement consent controls `ad_storage` and `ad_user_data`; `ad_personalization` and Google Signals stay disabled. Existing analytics consent is not upgraded to advertising consent. Campaign parameters are allowlisted; scores, private credentials, answers and emails are excluded.
 
@@ -14,4 +15,8 @@ Analytics loads only on `12axes.net` and after analytics consent. Separate ad-me
 
 This is browser measurement, not a complete financial ledger. No consent, blocking, not returning from Checkout, network failure after a receipt is claimed, or cross-device completion can cause undercounting. Refunds are not automatically uploaded to GA4/Ads; calculate net contribution from Stripe/order records. The claim timestamp means a receipt was issued, not proof Google received it.
 
-Validation on 2026-10-08: production build, TypeScript, server tests and client consent/attribution/receipt tests passed. Live receipt of the new purchase event and real Ads click attribution still require verification after deployment; do not fabricate a production purchase for testing.
+Validation on 2026-10-08: production build, TypeScript, server tests and client consent/attribution/receipt tests passed. Commit `e0caec8b0a3ba05f157f89c3d1bdb3751f74c986` deployed successfully to production (Cloudflare Pages deployment `4185d245-7e83-4871-9217-35c24d71e12b`); migration `0006` applied remotely.
+
+Live Chrome Network verification: `gtag/js?id=G-CE8EXPY4K6` returned 200 and GA4 `g/collect` returned 204. Inspected payload used the correct measurement ID, `en=page_view`, cleaned `dl=https://12axes.net/privacy`, generic `dt=12Axes`, empty referrer and `npa=1`. GA4 Realtime shows ordinary page and quiz events. A new real purchase reaching GA4 still needs verification against the paid order. Real Ads attribution needs a subsequent genuine ad click and purchase after the experiment begins; neither a natural purchase nor a fabricated gclid proves Ads attribution.
+
+The US/English campaign is published for review and paused, with zero spend at verification. See `docs/ads-launch-2026-10-08.md` for settings, observed market data, UI instructions and activation conditions.
