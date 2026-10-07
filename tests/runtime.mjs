@@ -45,7 +45,7 @@ export async function createRuntime(options = {}) {
     if (!response.ok) throw new Error(await response.text());
     return response.json();
   }])); }, run() { return this.bind().run(); } }; } };
-  for (const migration of ["0001_billing.sql", "0002_support.sql", "0003_refunds.sql", "0004_report_plus.sql", "0005_deep_report.sql"]) {
+  for (const migration of ["0001_billing.sql", "0002_support.sql", "0003_refunds.sql", "0004_report_plus.sql", "0005_deep_report.sql", "0006_purchase_measurement.sql"]) {
     const sql = await readFile(new URL("../migrations/" + migration, import.meta.url), "utf8");
     for (const statement of sql.split(";").filter((part) => part.trim())) await db.prepare(statement).run();
   }

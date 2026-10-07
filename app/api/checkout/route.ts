@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
       const sameResult = existing.expected_amount === amount && existing.dependency_order_id === dependencyOrderId && (plan !== "deep" || sameEvidence);
       const response = await fetch("https://api.stripe.com/v1/checkout/sessions/" + existing.checkout_session_id, { headers: { authorization: "Bearer " + secret } });
       const session = await response.json() as { status?: string; url?: string };
-      if (response.ok && session.status === "open" && session.url && existing.plan === plan && sameResult) return NextResponse.json({ url: session.url }, { headers: privateHeaders });
+      if (response.ok && session.status === "open" && session.url && existing.plan === plan && sameResult) return NextResponse.json({ url: session.url, orderId: existing.id }, { headers: privateHeaders });
       if (response.ok && session.status === "open" && (existing.plan !== plan || !sameResult)) {
         const expired = await fetch("https://api.stripe.com/v1/checkout/sessions/" + existing.checkout_session_id + "/expire", { method: "POST", headers: { authorization: "Bearer " + secret } });
         if (expired.ok) session.status = "expired";
@@ -111,7 +111,7 @@ export async function POST(request: NextRequest) {
       throw new Error("Checkout price configuration mismatch");
     }
     await db.prepare("UPDATE orders SET checkout_session_id = ?, updated_at = ? WHERE id = ?").bind(session.id, now, orderId).run();
-    return NextResponse.json({ url: session.url }, { headers: privateHeaders });
+    return NextResponse.json({ url: session.url, orderId }, { headers: privateHeaders });
   } catch {
     await db.prepare("UPDATE orders SET status = 'failed', updated_at = ? WHERE id = ? AND status = 'pending'").bind(now, orderId).run();
     return NextResponse.json({ error: "Checkout unavailable. Please try again." }, { status: 502, headers: privateHeaders });

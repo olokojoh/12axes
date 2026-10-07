@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { commerceSlugs, commerceLabels } from "./CommercePage";
 import { ReportRecovery } from "./ReportRecovery";
 import { reportUi, axisReading, privateLinkLabel } from "./report-copy";
-import { trackEvent } from "./Analytics";
+import { trackEvent, rememberCheckout, trackPurchase } from "./Analytics";
 import { DeepReport } from "./DeepReport";
 import { deepCopy, compactPlanFeatures } from "./deep-copy";
 import { quizVersion } from "./lib/quiz-version";
@@ -451,6 +451,14 @@ export function TestApp({ locale: initialLocale }: { locale: Locale }) {
     }
   }
 
+  useEffect(() => {
+    if (!paid || !reportToken || !new URLSearchParams(window.location.search).has("paid")) return;
+    const measure = () => { void trackPurchase(reportToken); };
+    measure();
+    window.addEventListener("analytics-ready", measure);
+    return () => window.removeEventListener("analytics-ready", measure);
+  }, [paid, reportToken]);
+
   async function startCheckout(selectedPlan: ReportPlan) {
     if (!result || checkoutBusy || !reportConsent) return;
     if (selectedPlan === "deep" && (!currentEvidence || !answerConsent)) return;
@@ -460,7 +468,8 @@ export function TestApp({ locale: initialLocale }: { locale: Locale }) {
     try {
       const response = await fetch("/api/checkout", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ axes: resultAxes, locale, variant: experimentVariant, quizLength: resultQuizLength, consent: reportConsent, plan: selectedPlan, ...(selectedPlan === "deep" ? { evidence: currentEvidence, answerConsent } : {}), ...(paid && reportToken ? { upgradeToken: reportToken } : selectedPlan === "deep" && upgradeContext ? { upgradeToken: upgradeContext.token } : {}) }) });
       if (!response.ok) throw new Error();
-      const payload = await response.json() as { url: string };
+      const payload = await response.json() as { url: string; orderId: string };
+      rememberCheckout(payload.orderId);
       window.location.assign(payload.url);
     } catch {
       setError(paidText.checkoutError);
