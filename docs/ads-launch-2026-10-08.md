@@ -8,7 +8,7 @@
 - 已发布，随后暂停；刷新后在正式系列设置中确认“已暂停”和“US$100.00（总计）”。
 - 原日预算系列 `12axes_US_EN_Search_Exact_Test`（ID `24324270945`）仍暂停，仅作备用。一次只启用一个系列，两个系列的预算不会合并封顶。
 - 检查时展示 0、点击 0、费用 US$0.00，没有进行真实扣款测试。
-- 网站购买追踪已上线；GA4 普通事件已收到，真实购买尚未验收。因此当前不能称为已开始投放或归因已验证。
+- 网站购买追踪已上线；最新 GA4 实时报告已收到两次 `purchase`，两个不同交易 ID 各一次，金额分别 US$4.99、US$5.00，币种均为 USD。尚需与 Stripe 订单逐笔核对，不能称为广告归因已验证。
 - [打开一次性总预算系列](https://ads.google.com/aw/overview?campaignId=24336646225&ocid=8104186451&authuser=0)
 - [打开日预算备用系列](https://ads.google.com/aw/adgroups?campaignId=24324270945&ocid=8104186451&authuser=0)
 
@@ -115,7 +115,7 @@ No account needed. Optional paid reports from US$4.99. One-time payment, no subs
 - D1 增量迁移 `0006_purchase_measurement.sql` 已应用。
 - 生产构建、TypeScript、46 项测试及额外 3 项客户端测试通过；lint 无错误。
 - 正式站 `gtag/js` 返回 200，GA4 `g/collect` 返回 204；载荷为正确衡量 ID、`en=page_view`、`npa=1`、清理后的 `/privacy` URL、通用标题 `12Axes`、空 referrer。
-- GA4 Realtime 收到 `page_view`、`quiz_start`、`quiz_complete` 等事件，检查时没有 `purchase`。
+- GA4 Realtime 收到 `page_view`、`quiz_start`、`quiz_complete` 等事件；本轮后续复查已出现两次 `purchase`。钻取参数确认两个不同交易 ID 各出现一次，`currency=USD` 两次，`value=4.99`、`value=5` 各一次。金额分布和交易 ID 列表分别查看，尚未与 Stripe 建立逐笔金额对应关系。
 
 浏览器拦截、不同意、付款后不返回等会漏报；收据领取不等于 Google 收到。不伪造购买，不把完成测验算作付费。
 
@@ -146,7 +146,7 @@ No account needed. Optional paid reports from US$4.99. One-time payment, no subs
 
 ### 验证真实购买
 
-1. Stripe 若出现登录页，正常登录。本轮恢复 Google 登录后停在验证器的 6 位验证码，需账号持有人直接完成。
+1. Stripe 若出现登录页，正常登录。本轮 Google 登录要求验证器的 6 位验证码；备选通行密钥要求手机扫码或实体安全密钥。需账号持有人直接完成其中一种验证，当前已返回 Stripe 登录页。
 2. 等待一笔新部署后的正常真实订单；购买者需同意分析、在原标签页付款并返回报告。不要用旧报告恢复制造购买。
 3. GA4 → “Reports” → “Realtime overview” → “Event count by Event name” → `purchase`，查看参数。
 4. 核对交易 ID、金额和 USD 与 Stripe 同一订单一致；刷新报告不应新增购买。
@@ -177,6 +177,6 @@ No account needed. Optional paid reports from US$4.99. One-time payment, no subs
 
 ## 尚待完成
 
-Google 审核；新真实购买与 GA4 对账（Stripe 页面尚需验证码）；启动后首笔真实广告购买归因。
+Google 审核；已收到的两次 GA4 购买与 Stripe 逐笔对账（Stripe 尚未完成登录，此前要求验证器验证码）；启动后首笔真实广告购买归因。
 
 当前是完整、可审核和可恢复的暂停广告系列。本轮未启用持续消耗，未设置后台定时监控。
