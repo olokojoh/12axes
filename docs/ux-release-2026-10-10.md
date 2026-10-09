@@ -1,6 +1,6 @@
 # 12Axes results UX release — 2026-10-10
 
-Based on [the GA4/GSC UX review](ux-analytics-review-2026-10-09.md). Status: implemented and locally checked; final sandbox delivery checks and production deployment are pending.
+Based on [the GA4/GSC UX review](ux-analytics-review-2026-10-09.md). Status: implementation, Claude Code review and sandbox acceptance complete; validated for Git promotion through dev → main.
 
 ## User-facing changes
 
@@ -36,7 +36,7 @@ Other actionable findings were addressed:
 
 Two review points are handled as reporting constraints above: high-cardinality run IDs and the changing progress denominator. The review also noted that an external origin can imply an affiliation; origin-only collection remains consent-gated and disclosed, without political answers or labels. No source-level review can certify mail delivery or Stripe end-to-end behavior; those require the acceptance checks below.
 
-Follow-up Claude Code review: pending final disposition.
+Follow-up Claude Code review completed with a **no actionable findings** verdict. It used actual Git diff, Read and Grep tools against all eight second-iteration files; no source changes were made by the reviewer. Browser and payment verification were performed separately below.
 
 ## Verification
 
@@ -47,6 +47,7 @@ Follow-up Claude Code review: pending final disposition.
 - **20 layout combinations pass:** 320/390/430/1280px × en/pt/es/ru/zh. Checks include readable mobile controls, ≥44px actions, desktop alignment, no horizontal overflow with the comparison expanded and all 4/8/12 entitlements.
 - Browser measurement checks pass for rejection, mid-quiz/result-only consent, event deduplication, actual button visibility, mocked Checkout failure, sensitive URL/parameter filtering and a single observed segment through 36→60. UUID failure does not break resume or delete saved progress.
 - Actual PNG download is 1080×1450. Sharing is unavailable until public-sharing consent.
+- A targeted local browser test switched original/latest paid-report views four times and all five languages; `full_report_view` remained at one. On a real sandbox report, the free-result jump, refresh and all five language changes preserved the private token and paid content.
 
 ## Sandbox and release checklist
 
@@ -56,12 +57,14 @@ No real-money purchase is part of this validation. Sandbox acceptance covers eac
 | --- | --- |
 | Stripe sandbox payments | 15/15 paid test purchases confirmed |
 | Report API unlock and tier entitlements | 15/15 confirmed |
-| Transactional email submission | Provider acceptance confirmed for the 15 purchases; inbox delivery is a separate check |
-| Gmail inbox receipt and correct localized links | Pending |
-| Email report recovery in each language | Pending |
-| Private-link access from a clean browser state / cross-device equivalent | Pending |
-| Sandbox refund and revoked access | Pending |
-| Final Claude Code follow-up disposition | Pending |
-| Push final iteration to dev, merge main and production verification | Pending |
+| Transactional email submission | 15/15 accepted by the provider |
+| Gmail receipt and correct localized private links | 15/15 individually verified |
+| Email report recovery in each language | 5/5 localized forms and actual recovery emails verified, one Deep report per language |
+| Private-link access from clean site state | 15/15 after clearing only the dev origin’s cookies/storage; verifies independence from previous browser state, not physical device or wallet coverage |
+| Sandbox refund and revoked access | 15/15 refunded; each report API subsequently rejected access |
+| Final Claude Code follow-up disposition | No actionable findings |
+| Dev deployment | Reviewed source `6750342` deployed successfully through Cloudflare native Git integration |
 
-Complete and record the pending gates before marking this release live. Private order IDs, report tokens and recipient addresses are intentionally excluded from this report.
+Sandbox CTA clicks, Checkout payments and initial report unlocks were validated on `c89e88e`; follow-up recovery, clean-state access and revocation were validated on reviewed source `6750342`. The second iteration did not change checkout, billing or email backend code. One Portuguese sandbox order also covered cancel return and a declined card before successful payment. No Stripe Link or real-money charge was used.
+
+Release through Git dev → main and verify Cloudflare’s exact deployed main SHA plus five-language production pages before announcing completion. Private order IDs, report tokens and recipient addresses are intentionally excluded from this report.
