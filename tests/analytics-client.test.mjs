@@ -12,13 +12,13 @@ const storage = () => {
   const values = new Map();
   return { getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value), removeItem: key => values.delete(key) };
 };
-async function setup(host = "12axes.net", ads = false) {
+async function setup(host = "12axes.net", ads = false, { referrer = "", consent = "granted" } = {}) {
   const target = new EventTarget();
   const location = new URL(`https://${host}/pt?gclid=test-click&utm_campaign=br_pt_exact_test&est=85&share=private-share#report=private-token`);
   globalThis.window = { location, localStorage: storage(), sessionStorage: storage(), dispatchEvent: event => target.dispatchEvent(event) };
   let script;
-  globalThis.document = { createElement: () => ({}), head: { appendChild: node => { script = node; } } };
-  window.localStorage.setItem("12axes:analytics-consent", "granted");
+  globalThis.document = { referrer, createElement: () => ({}), head: { appendChild: node => { script = node; } } };
+  if (consent !== null) window.localStorage.setItem("12axes:analytics-consent", consent);
   if (ads) window.localStorage.setItem("12axes:ads-consent", "granted");
   const client = await import(out + "?case=" + crypto.randomUUID());
   client.enableAnalytics();
@@ -36,6 +36,56 @@ test("campaign attribution requires separate ad consent and excludes private URL
     assert.equal(new URL(event[2].page_location).searchParams.has("gclid"), ads);
     assert.doesNotMatch(JSON.stringify(state.events()), /private-token|private-share|est=85|secret/);
   }
+});
+
+test("external attribution keeps only the source origin, never sensitive URL contents", async () => {
+  const state = await setup("12axes.net", false, { referrer: "https://www.google.com/political-profile/private-path?score=85&answer=private-answer#report=private-referrer-token" });
+  state.client.trackEvent("result_preview_view", { language: "en" });
+  const measured = state.events().filter(event => event[0] === "config" || event[0] === "event");
+  assert.ok(measured.length >= 3);
+  for (const event of measured) assert.equal(event[2].page_referrer, "https://www.google.com");
+  assert.doesNotMatch(JSON.stringify(state.events()), /private-path|score=85|private-answer|private-referrer-token/);
+});
+
+test("same-site and Stripe payment returns never become referral sources", async () => {
+  for (const referrer of [
+    "https://12axes.net/results?share=private-share#report=private-token",
+    "https://checkout.stripe.com/c/pay/private-checkout",
+    "https://buy.stripe.com/private-payment",
+    "https://stripe.com/private-payment",
+    "javascript:private-token",
+  ]) {
+    const state = await setup("12axes.net", false, { referrer });
+    state.client.trackEvent("result_preview_view", { language: "en" });
+    for (const event of state.events().filter(event => event[0] === "config" || event[0] === "event")) assert.equal(event[2].page_referrer, "");
+  }
+});
+
+test("denied or unanswered analytics consent loads no tag and records no events or checkout", async () => {
+  for (const consent of ["denied", null]) {
+    const state = await setup("12axes.net", true, { consent });
+    state.client.trackEvent("quiz_start", { quiz_run_id: crypto.randomUUID() });
+    state.client.rememberCheckout("should-not-be-saved");
+    assert.equal(state.script(), undefined);
+    assert.equal(window.gtag, undefined);
+    assert.equal(state.events().length, 0);
+    assert.equal(window.sessionStorage.getItem("12axes:pending-purchase"), null);
+  }
+});
+
+test("funnel measurement admits a random run ID and stages while excluding political data", async () => {
+  const state = await setup();
+  const quizRunId = crypto.randomUUID();
+  state.client.trackEvent("quiz_progress", {
+    quiz_run_id: quizRunId, measurement_entry: "start", progress_stage: 50, choice: "extend",
+    answers: "private-answer", axes: "private-score", ideology: "private-label", report: "private-token",
+  });
+  const event = state.events().at(-1)[2];
+  assert.equal(event.quiz_run_id, quizRunId);
+  assert.equal(event.measurement_entry, "start");
+  assert.equal(event.progress_stage, 50);
+  assert.equal(event.choice, "extend");
+  assert.doesNotMatch(JSON.stringify(event), /private-answer|private-score|private-label|private-token/);
 });
 
 test("preview never loads the production measurement tag", async () => {

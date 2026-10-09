@@ -34,15 +34,28 @@ function measurementPage() {
   return page.href;
 }
 
+function measurementReferrer() {
+  const referrer = document.referrer;
+  if (!referrer) return "";
+  try {
+    const parsed = new URL(referrer);
+    if (parsed.origin === window.location.origin || !["http:", "https:"].includes(parsed.protocol)
+      || parsed.hostname === "stripe.com" || parsed.hostname.endsWith(".stripe.com")) return "";
+    return parsed.origin;
+  } catch {
+    return "";
+  }
+}
+
 function enableAnalytics() {
-  if (window.gtag || window.location.hostname !== "12axes.net") return;
+  if (window.gtag || window.location.hostname !== "12axes.net" || window.localStorage.getItem("12axes:analytics-consent") !== "granted") return;
   window.dataLayer = window.dataLayer ?? [];
   // eslint-disable-next-line prefer-rest-params -- Google distinguishes Arguments objects from arrays.
   window.gtag = function () { window.dataLayer?.push(arguments); };
   const ads = window.localStorage.getItem("12axes:ads-consent") === "granted" ? "granted" : "denied";
   window.gtag("consent", "default", { analytics_storage: "granted", ad_storage: ads, ad_user_data: ads, ad_personalization: "denied" });
   window.gtag("js", new Date());
-  window.gtag("config", "G-CE8EXPY4K6", { send_page_view: false, allow_google_signals: false, allow_ad_personalization_signals: false, page_location: measurementPage(), page_referrer: "", page_title: "12Axes" });
+  window.gtag("config", "G-CE8EXPY4K6", { send_page_view: false, allow_google_signals: false, allow_ad_personalization_signals: false, page_location: measurementPage(), page_referrer: measurementReferrer(), page_title: "12Axes" });
   trackEvent("page_view");
   const script = document.createElement("script");
   script.async = true;
@@ -53,9 +66,9 @@ function enableAnalytics() {
 
 export function trackEvent(name: string, params: Record<string, string | number | boolean> = {}) {
   if (typeof window === "undefined" || !window.gtag || window.localStorage.getItem("12axes:analytics-consent") !== "granted") return;
-  const allowed = new Set(["variant", "language", "device", "quiz_length", "entry_type", "plan"]);
+  const allowed = new Set(["variant", "language", "device", "quiz_length", "entry_type", "plan", "error_type", "quiz_run_id", "measurement_entry", "progress_stage", "choice"]);
   const safe = Object.fromEntries(Object.entries(params).filter(([key]) => allowed.has(key)));
-  window.gtag("event", name, { ...safe, page_location: measurementPage(), page_referrer: "", page_title: "12Axes" });
+  window.gtag("event", name, { ...safe, page_location: measurementPage(), page_referrer: measurementReferrer(), page_title: "12Axes" });
 }
 
 export function rememberCheckout(orderId: string) {
@@ -77,7 +90,7 @@ export async function trackPurchase(token: string) {
     const purchase = await response.json() as { transaction_id: string; value: number; currency: string; plan: string };
     window.gtag("event", "purchase", { transaction_id: purchase.transaction_id, value: purchase.value, currency: purchase.currency,
       items: [{ item_id: purchase.plan, item_name: "Report", price: purchase.value, quantity: 1 }],
-      page_location: window.location.origin + "/results", page_referrer: "", page_title: "12Axes" });
+      page_location: window.location.origin + "/results", page_referrer: measurementReferrer(), page_title: "12Axes" });
     window.sessionStorage.removeItem("12axes:pending-purchase");
   } catch { /* Measurement must never interrupt access to a paid report. */ }
   finally { purchaseInFlight = false; }

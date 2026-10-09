@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { commerceSlugs, commerceLabels } from "./CommercePage";
 import { ReportRecovery } from "./ReportRecovery";
 import { reportUi, axisReading, privateLinkLabel } from "./report-copy";
@@ -12,6 +12,7 @@ import type { DeepReportData, QuizEvidence } from "./lib/quiz-evidence";
 import type { ReportPlan } from "./lib/report-access";
 import { PlusReport } from "./PlusReport";
 import { plusCopy } from "./plus-copy";
+import { resultOfferCopy } from "./result-offer-copy";
 import type { PlusReportData } from "./lib/matching";
 import { homeTitles, homeDescriptions, homeSchema } from "./home-seo";
 import { CurrencyEstimate } from "./CurrencyEstimate";
@@ -189,12 +190,17 @@ export function TestApp({ locale: initialLocale }: { locale: Locale }) {
   const [shareConsent, setShareConsent] = useState(false);
   const [reportConsent, setReportConsent] = useState(true);
   const [reportPending, setReportPending] = useState(false);
-  const ctaRef = useRef<HTMLButtonElement>(null);
+  const resultOfferRef = useRef<HTMLElement>(null);
+  const resultEntry = useRef("quiz");
+  const seenResultEvents = useRef(new Set<string>());
+  const quizMeasurement = useRef<{ id: string; entry: string; seen: Set<string> } | null>(null);
+  const measurementEntry = useRef("midway");
   const [paid, setPaid] = useState(false);
   const [plan, setPlan] = useState<ReportPlan>("basic");
   const [plus, setPlus] = useState<PlusReportData | null>(null);
   const plusText = plusCopy[locale];
   const deepText = deepCopy[locale];
+  const offerText = resultOfferCopy[locale];
   const [deep, setDeep] = useState<DeepReportData | null>(null);
   const [answerConsent, setAnswerConsent] = useState(true);
   const [hasOriginal, setHasOriginal] = useState(false);
@@ -206,6 +212,35 @@ export function TestApp({ locale: initialLocale }: { locale: Locale }) {
   const [localSaved, setLocalSaved] = useState(false);
   const currentEvidence: QuizEvidence | null = deep?.evidence ?? (questions.length > 0 && questions.every(q => answers[q.id]) ? { version: quizVersion, questionIds: questions.map(q => q.id), answers: questions.map(q => answers[q.id]) } : null);
   const neutralCount = deep?.neutralCount ?? questions.filter(q => data?.answerOptions.find(a => a.id === answers[q.id])?.scoreTowardAgreement === 0.5).length;
+
+  const measureQuiz = useCallback((name: string, length: number, params: Record<string, string | number> = {}) => {
+    if (!window.gtag || window.localStorage.getItem("12axes:analytics-consent") !== "granted") return false;
+    if (!quizMeasurement.current) {
+      quizMeasurement.current = { id: crypto.randomUUID(), entry: measurementEntry.current, seen: new Set() };
+      if (!["quiz_start", "quiz_resume", "quiz_observation_start"].includes(name)) {
+        trackEvent("quiz_observation_start", { language: locale, device: deviceClass(), quiz_length: length, quiz_run_id: quizMeasurement.current.id, measurement_entry: measurementEntry.current });
+      }
+    }
+    const measurement = quizMeasurement.current;
+    const key = name + ":" + length + ":" + (params.progress_stage ?? params.choice ?? "");
+    if (measurement.seen.has(key)) return true;
+    trackEvent(name, { variant: "baseline", language: locale, device: deviceClass(), quiz_length: length, quiz_run_id: measurement.id, measurement_entry: measurement.entry, ...params });
+    measurement.seen.add(key);
+    return true;
+  }, [locale]);
+
+  useEffect(() => {
+    if (!["quiz", "extend"].includes(mode)) return;
+    const observe = () => {
+      if (!quizMeasurement.current) measureQuiz("quiz_observation_start", questions.length);
+      const stage = Math.floor(Object.keys(answers).length / questions.length * 4) * 25;
+      if (stage > 0) measureQuiz("quiz_progress", questions.length, { progress_stage: stage });
+      if (mode === "extend") measureQuiz("quiz_extend_view", questions.length);
+    };
+    observe();
+    window.addEventListener("analytics-ready", observe);
+    return () => window.removeEventListener("analytics-ready", observe);
+  }, [mode, questions.length, answers, measureQuiz]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -239,6 +274,8 @@ export function TestApp({ locale: initialLocale }: { locale: Locale }) {
       const bank = await loadData();
       const selected = savedTest.questionIds.map(id => bank.questions.find(q => q.id === id));
       if (selected.some(q => !q) || Object.entries(savedTest.answers).some(([id, value]) => !savedTest.questionIds.includes(id) || !bank.answerOptions.some(option => option.id === value))) throw new Error();
+      quizMeasurement.current = null; measurementEntry.current = "resume";
+      if (savedTest.mode !== "results") measureQuiz("quiz_resume", selected.length);
       setQuestions(selected as Question[]); setAnswers(savedTest.answers); setQuestionIndex(savedTest.questionIndex); setVariant(savedTest.variant); setSaveLocal(true); setSavedTest(null);
       setShareId(null); setShareConsent(false); setCopied(false); setPrivateLinkCopied(false);
       if (savedTest.mode === "results" && selected.every(q => savedTest.answers[q!.id])) await fetchResult(calculateAxes(selected as Question[], savedTest.answers, bank), selected.length, "local_resume");
@@ -271,6 +308,7 @@ export function TestApp({ locale: initialLocale }: { locale: Locale }) {
     });
     canvas.toBlob(blob => {
       if (!blob) return;
+      trackEvent("download_result", { variant: experimentVariant, language: locale, device: deviceClass(), quiz_length: resultQuizLength });
       const url = URL.createObjectURL(blob); const link = document.createElement("a"); link.href = url; link.download = "12axes-result.png"; link.click(); window.setTimeout(() => URL.revokeObjectURL(url), 1000);
     }, "image/png");
   }
@@ -317,7 +355,8 @@ export function TestApp({ locale: initialLocale }: { locale: Locale }) {
       setQuestionIndex(0);
       setResult(null);
       setMode("quiz");
-      trackEvent("quiz_start", { variant: experimentVariant, language: locale, device: deviceClass(), quiz_length: nextVariant === "short" ? 36 : nextVariant === "extended" ? 60 : 240 });
+      quizMeasurement.current = null; measurementEntry.current = "start";
+      if (!measureQuiz("quiz_start", chosen.length)) measurementEntry.current = "midway";
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch {
       setError(auxiliaryUi[locale].loadError);
@@ -343,6 +382,7 @@ export function TestApp({ locale: initialLocale }: { locale: Locale }) {
 
   function extendQuiz() {
     if (!data) return;
+    measureQuiz("quiz_extend_choice", questions.length, { choice: "extend" });
     const additions = extraQuestions(data, new Set(questions.map((question) => question.id)));
     setQuestions((current) => [...current, ...additions]);
     setQuestionIndex(questions.length);
@@ -370,6 +410,8 @@ export function TestApp({ locale: initialLocale }: { locale: Locale }) {
     setError("");
     setResultAxes(axes);
     setResultQuizLength(length);
+    seenResultEvents.current.clear();
+    resultEntry.current = entryType;
     try {
       await loadData();
       const response = await fetch("/api/match", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ axes, locale }) });
@@ -378,8 +420,8 @@ export function TestApp({ locale: initialLocale }: { locale: Locale }) {
       setResult(payload);
       setResultLocale(locale);
       setMode("results");
-      trackEvent("result_preview_view", { variant: experimentVariant, language: locale, device: deviceClass(), quiz_length: length, entry_type: entryType });
     } catch {
+      trackEvent("result_load_error", { language: locale, device: deviceClass(), quiz_length: length, entry_type: entryType, error_type: "request_failed" });
       setError(auxiliaryUi[locale].resultError);
       setMode(questions.length || entryType === "local_resume" ? "quiz" : "home");
     }
@@ -395,7 +437,7 @@ export function TestApp({ locale: initialLocale }: { locale: Locale }) {
       return;
     }
     const axes = calculateAxes();
-    trackEvent("quiz_complete", { variant: experimentVariant, language: locale, device: deviceClass(), quiz_length: questions.length });
+    measureQuiz("quiz_complete", questions.length);
     await fetchResult(axes);
   }
 
@@ -427,12 +469,15 @@ export function TestApp({ locale: initialLocale }: { locale: Locale }) {
           setQuestions(evidence.questionIds.map(id => bank.questions.find(q => q.id === id)!));
           setAnswers(Object.fromEntries(evidence.questionIds.map((id, index) => [id, evidence.answers[index]])));
         }
+        trackEvent("checkout_cancel", { language: locale, device: deviceClass(), quiz_length: payload.quizLength });
         await fetchResult(payload.axes, payload.quizLength, "checkout_cancel");
         return;
       }
       if (payload.status === "pending") { setReportPending(true); return; }
       if (!response.ok || payload.status !== "paid") throw new Error();
       await loadData();
+      seenResultEvents.current.clear();
+      resultEntry.current = "paid_report";
       setPaid(true);
       setPlan(payload.plan);
       setPlus(payload.plus);
@@ -443,7 +488,6 @@ export function TestApp({ locale: initialLocale }: { locale: Locale }) {
       setResult(payload.result);
       setResultLocale(locale);
       setMode("results");
-      trackEvent("full_report_view", { plan: payload.plan, variant: experimentVariant, language: locale, device: deviceClass(), quiz_length: payload.quizLength });
     } catch {
       setReportPending(false);
       setError(paidText.reportError);
@@ -469,9 +513,11 @@ export function TestApp({ locale: initialLocale }: { locale: Locale }) {
       const response = await fetch("/api/checkout", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ axes: resultAxes, locale, variant: experimentVariant, quizLength: resultQuizLength, consent: reportConsent, plan: selectedPlan, ...(selectedPlan === "deep" ? { evidence: currentEvidence, answerConsent } : {}), ...(paid && reportToken ? { upgradeToken: reportToken } : selectedPlan === "deep" && upgradeContext ? { upgradeToken: upgradeContext.token } : {}) }) });
       if (!response.ok) throw new Error();
       const payload = await response.json() as { url: string; orderId: string };
+      trackEvent("checkout_create_success", { plan: selectedPlan, variant: experimentVariant, language: locale, device: deviceClass(), quiz_length: resultQuizLength });
       rememberCheckout(payload.orderId);
       window.location.assign(payload.url);
     } catch {
+      trackEvent("checkout_create_error", { plan: selectedPlan, variant: experimentVariant, language: locale, device: deviceClass(), quiz_length: resultQuizLength, error_type: "request_failed" });
       setError(paidText.checkoutError);
       setCheckoutBusy(false);
     }
@@ -515,16 +561,38 @@ export function TestApp({ locale: initialLocale }: { locale: Locale }) {
   }, []);
 
   useEffect(() => {
-    if (mode !== "results" || paid || !ctaRef.current) return;
-    const observer = new IntersectionObserver(([entry]) => {
-      if (entry.isIntersecting) {
-        trackEvent("paywall_view", { variant: experimentVariant, language: locale, device: deviceClass(), quiz_length: resultQuizLength });
-        observer.disconnect();
+    if (mode !== "results" || !resultOfferRef.current) return;
+    const observer = new IntersectionObserver(entries => {
+      if (!window.gtag || window.localStorage.getItem("12axes:analytics-consent") !== "granted") return;
+      for (const entry of entries) {
+        if (!entry.isIntersecting || entry.intersectionRatio < 0.5) continue;
+        const element = entry.target as HTMLElement;
+        const event = element.dataset.measureEvent!;
+        const plan = element.dataset.plan;
+        const key = event + ":" + (plan ?? "");
+        if (seenResultEvents.current.has(key)) continue;
+        trackEvent(event, { variant: experimentVariant, language: locale, device: deviceClass(), quiz_length: resultQuizLength, entry_type: resultEntry.current, ...(plan ? { plan } : {}) });
+        if (event === "plan_view" && plan === "basic") trackEvent("paywall_view", { variant: experimentVariant, language: locale, device: deviceClass(), quiz_length: resultQuizLength });
+        seenResultEvents.current.add(key);
       }
     }, { threshold: 0.5 });
-    observer.observe(ctaRef.current);
-    return () => observer.disconnect();
-  }, [mode, paid, locale, resultQuizLength]);
+    const observe = () => {
+      if (window.gtag && window.localStorage.getItem("12axes:analytics-consent") === "granted" && !seenResultEvents.current.has("result_view")) {
+        const params = { variant: experimentVariant, language: locale, device: deviceClass(), quiz_length: resultQuizLength, entry_type: resultEntry.current };
+        if (paid) trackEvent("full_report_view", { ...params, plan });
+        else if (["quiz", "local_resume"].includes(resultEntry.current)) {
+          if (!quizMeasurement.current) measurementEntry.current = "result";
+          measureQuiz("result_preview_view", resultQuizLength, params);
+        } else trackEvent("result_preview_view", params);
+        seenResultEvents.current.add("result_view");
+      }
+      observer.disconnect();
+      resultOfferRef.current?.querySelectorAll("[data-measure-event]").forEach(element => observer.observe(element));
+    };
+    observe();
+    window.addEventListener("analytics-ready", observe);
+    return () => { observer.disconnect(); window.removeEventListener("analytics-ready", observe); };
+  }, [mode, paid, plan, locale, resultQuizLength, result, measureQuiz]);
 
   useEffect(() => {
     if (mode === "results") window.scrollTo({ top: 0, behavior: "instant" });
@@ -534,6 +602,7 @@ export function TestApp({ locale: initialLocale }: { locale: Locale }) {
     cancelAdvance();
     window.history.replaceState(null, "", localePath(locale));
     setMode("format");
+    quizMeasurement.current = null; measurementEntry.current = "midway";
     setQuestions([]);
     setAnswers({});
     setQuestionIndex(0);
@@ -733,9 +802,10 @@ export function TestApp({ locale: initialLocale }: { locale: Locale }) {
         <section className="question-card extend-card">
           <span className="eyebrow">{text.progress(36, 60)}</span>
           <h1>{text.extendTitle}</h1>
+          <p>{offerText.extendTime}</p>
           <div className="answer-grid two">
             <button className="answer-button" onClick={extendQuiz}><span>✓</span><b>{text.extendYes}</b></button>
-            <button className="answer-button" onClick={finish}><span>×</span><b>{text.extendNo}</b></button>
+            <button className="answer-button" onClick={() => { measureQuiz("quiz_extend_choice", questions.length, { choice: "result" }); void finish(); }}><span>→</span><b>{text.extendNo}</b></button>
           </div>
         </section>
         <button className="secondary-button back-alone" onClick={() => { setMode("quiz"); setQuestionIndex(questions.length - 1); }}>← {text.back}</button>
@@ -745,13 +815,24 @@ export function TestApp({ locale: initialLocale }: { locale: Locale }) {
 
   if (mode === "results" && result) {
     return (
-      <main className="app-shell result-shell">
+      <main className="app-shell result-shell" ref={resultOfferRef}>
         <AppHeader locale={locale} onLocale={switchLocale} compact onHome={() => setMode("home")} action={text.retake} onAction={reset} />
         <div className="result-offer">
           <ResultMatch match={result.topMatch} label={text.topMatch} locale={locale} large />
+          <div className="result-quick-actions">
+            <a className="secondary-button" href="#free-results" onClick={event => { event.preventDefault(); trackEvent("free_result_click", { language: locale, device: deviceClass(), quiz_length: resultQuizLength }); document.getElementById("free-results")?.scrollIntoView(); }}>{deepText.freeResults} ↓</a>
+            <button className="secondary-button" onClick={downloadImage}>{deepText.download}</button>
+            <details className="result-sharing-top">
+              <summary className="secondary-button">{offerText.share}</summary>
+              <div className="share-controls">
+                <label className="consent-label result-consent"><input type="checkbox" checked={shareConsent} onChange={event => setShareConsent(event.target.checked)} />{paidText.shareConsent}</label>
+                <button className="primary-button" disabled={shareBusy || !shareConsent} onClick={shareResult}>{copied ? text.copied : text.share} ↗</button>
+              </div>
+            </details>
+          </div>
           <section className="paid-report-cta">
             <h2>{paid ? plan === "deep" ? deepText.name : plan === "plus" ? plusText.plus : paidText.unlocked : plusText.choose}</h2>
-            <p>{paid ? paidText.body : plusText.optional} {!paid && <a href="#free-results">{deepText.freeResults} ↓</a>}</p>
+            <p>{paid ? paidText.body : plusText.optional}</p>
             {paid ? <>{hasOriginal && <p>{deepText.retestNote} <button className="text-button" onClick={() => { const original = !originalView; setOriginalView(original); void fetchPaidReport(reportToken!, false, original); }}>{originalView ? deepText.latest : deepText.original}</button></p>}<div className="result-actions">
               <button className="primary-button" onClick={() => window.print()}>{paidText.pdf}</button>
               <button className="secondary-button" onClick={async () => {
@@ -765,40 +846,47 @@ export function TestApp({ locale: initialLocale }: { locale: Locale }) {
               {entitlement !== "deep" && <div className="upgrade-offer deep-plan-card"><span className="plan-attention-star" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m12 1.75 2.95 5.98 6.6.96-4.78 4.66 1.13 6.58L12 16.82l-5.9 3.1 1.13-6.58-4.78-4.66 6.6-.96L12 1.75Z" /></svg></span><h3>{deepText.name}</h3><p>{deepText.upgradeNote}</p><ul>{deepText.features.map(feature => <li key={feature}>{feature}</li>)}</ul>{currentEvidence ? <><label className="consent-label"><input type="checkbox" checked={answerConsent} onChange={event => setAnswerConsent(event.target.checked)} />{deepText.consent}</label><button className="primary-button" disabled={!answerConsent || checkoutBusy} onClick={() => startCheckout("deep")}>{deepText.upgrade} · US${entitlement === "plus" ? "5" : "10"}</button><CurrencyEstimate locale={locale} amount={entitlement === "plus" ? 5 : 10} /></> : <><p>{deepText.needsQuiz}</p><button className="primary-button" onClick={prepareDeepRetake}>{deepText.retake}</button></>}</div>}</> : <>
               <label className="consent-label purchase-consent"><input type="checkbox" checked={reportConsent} onChange={(event) => setReportConsent(event.target.checked)} /><span>{paidText.consent} <a href={localePath(locale, "/privacy")}>{paidText.privacy}</a></span></label>
               {currentEvidence && <label className="consent-label purchase-consent answer-consent"><input type="checkbox" checked={answerConsent} onChange={event => setAnswerConsent(event.target.checked)} /><span>{deepText.consent}</span></label>}
-              <div className="plan-options three-plans">
+              <div className="plan-options three-plans result-plan-options">
                 {(["basic", "plus", "deep"] as const).map((reportPlan) => (
                   <article id={`report-${reportPlan}`} className={reportPlan === "deep" ? "deep-plan-card" : reportPlan === "plus" ? "plus-plan-card" : undefined} key={reportPlan}>
                     <span className="plan-attention-star" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m12 1.75 2.95 5.98 6.6.96-4.78 4.66 1.13 6.58L12 16.82l-5.9 3.1 1.13-6.58-4.78-4.66 6.6-.96L12 1.75Z" /></svg></span>
                     <h3>{reportPlan === "deep" ? deepText.name : reportPlan === "basic" ? plusText.basic : plusText.plus}</h3>
+                    <div className="plan-summary"><p>{offerText.purpose[reportPlan]}</p>{reportPlan === "deep" && !currentEvidence && <p className="plan-requirement">{deepText.needsQuiz}</p>}</div>
                     <p className="plan-price">{reportPlan === "deep" ? upgradeContext ? `US$${upgradeContext.plan === "plus" ? "5" : "10"}` : deepText.amount : reportPlan === "basic" ? plusText.basicAmount : plusText.plusAmount}</p>
-                    <button ref={reportPlan === "basic" ? ctaRef : undefined} className="primary-button report-buy-button" disabled={!reportConsent || checkoutBusy || (reportPlan === "deep" && !!currentEvidence && !answerConsent)} onClick={() => reportPlan === "deep" && !currentEvidence ? prepareDeepRetake() : startCheckout(reportPlan)}>
-                      <span>{checkoutBusy ? paidText.wait : reportPlan === "deep" && !currentEvidence ? text.retake : plusText.purchase} · <b>{reportPlan === "deep" ? upgradeContext ? `US$${upgradeContext.plan === "plus" ? "5" : "10"}` : deepText.amount : reportPlan === "basic" ? plusText.basicAmount : plusText.plusAmount}</b><span aria-hidden="true"> →</span></span>
+                    <button data-measure-event="plan_view" data-plan={reportPlan} className="primary-button report-buy-button" disabled={!reportConsent || checkoutBusy || (reportPlan === "deep" && !!currentEvidence && !answerConsent)} onClick={() => reportPlan === "deep" && !currentEvidence ? prepareDeepRetake() : startCheckout(reportPlan)}>
+                      <span>{checkoutBusy ? paidText.wait : reportPlan === "deep" && !currentEvidence ? deepText.retake : <>{plusText.purchase} · <b>{reportPlan === "deep" ? upgradeContext ? `US$${upgradeContext.plan === "plus" ? "5" : "10"}` : deepText.amount : reportPlan === "basic" ? plusText.basicAmount : plusText.plusAmount}</b></>}<span aria-hidden="true"> →</span></span>
                     </button>
                     <div className="plan-estimate" data-estimated={locale !== "en"}><CurrencyEstimate locale={locale} amount={reportPlan === "deep" ? upgradeContext ? upgradeContext.plan === "plus" ? 5 : 10 : 14.99 : reportPlan === "basic" ? 4.99 : 9.99} /></div>
-                    <ul className="plan-features">
-                      {compactPlanFeatures[locale].map((feature, index) => {
-                        const included = reportPlan === "deep" || index < (reportPlan === "plus" ? 8 : plusText.basicFeatures.length);
-                        return <li key={feature}>
-                          <svg className={included ? "feature-included" : "feature-excluded"} viewBox="0 0 20 20" role="img" aria-label={included ? plusText.included : plusText.notIncluded}>
-                            <path d={included ? "m4 10 4 4 8-8" : "m5 5 10 10M15 5 5 15"} />
-                          </svg>
-                          <span>{feature}</span>
-                        </li>;
-                      })}
-                    </ul>
+                    <ul className="plan-highlights">{offerText.highlights[reportPlan].map(feature => <li key={feature}>{feature}</li>)}</ul>
                   </article>
                 ))}
               </div>
-              {!currentEvidence && <p>{deepText.needsQuiz}</p>}
+              <details className="plan-comparison">
+                <summary>{offerText.compare}</summary>
+                <table>
+                  <thead><tr><th scope="col">{offerText.feature}</th>{[plusText.basicAmount, plusText.plusAmount, deepText.amount].map(amount => <th scope="col" key={amount}>{amount}</th>)}</tr></thead>
+                  <tbody>{compactPlanFeatures[locale].map((feature, index) => <tr key={feature}><th scope="row">{feature}</th>{(["basic", "plus", "deep"] as const).map(reportPlan => {
+                    const included = reportPlan === "deep" || index < (reportPlan === "plus" ? 8 : plusText.basicFeatures.length);
+                    return <td key={reportPlan}><svg className={included ? "feature-included" : "feature-excluded"} viewBox="0 0 20 20" role="img" aria-label={included ? plusText.included : plusText.notIncluded}><path d={included ? "m4 10 4 4 8-8" : "m5 5 10 10M15 5 5 15"} /></svg></td>;
+                  })}</tr>)}</tbody>
+                </table>
+              </details>
+              <details className="report-sample" onToggle={event => { if (event.currentTarget.open) trackEvent("report_sample_view", { language: locale, device: deviceClass() }); }}>
+                <summary>{offerText.sample}</summary>
+                <p>{offerText.sampleNote}</p>
+                <h3>{plusText.basic} · {offerText.sampleAxis}</h3>
+                <p>{axisReading(locale, 0, 65, offerText.sampleLeft, offerText.sampleRight)}</p>
+                <h3>{plusText.plus}</h3><p>{offerText.sampleComparison}</p>
+                <h3>{deepText.name}</h3><p>{offerText.sampleEvidence}</p>
+              </details>
               {upgradeContext && <p>{deepText.upgradeNote}</p>}
               <p className="billing-note">{paidText.currency}</p>
               <div className="billing-links"><a href={localePath(locale, "/pricing")}>{paidText.pricing}</a><a href={localePath(locale, "/refund")}>{paidText.refund}</a><a href={localePath(locale, "/privacy")}>{paidText.privacy}</a></div>
             </>}
+            {error && <p className="inline-error" role="alert">{error}</p>}
           </section>
-
         </div>
-        <a className="free-results-link" href="#free-results">{deepText.freeResults} ↓</a>
-        <section className="result-intro" id="free-results">
+        <section className="result-intro" id="free-results" data-measure-event="free_result_view">
           <span className="eyebrow">{text.resultEyebrow}</span>
           <h2>{text.resultTitle}</h2>
           <p>{text.resultLead}</p>
@@ -834,13 +922,9 @@ export function TestApp({ locale: initialLocale }: { locale: Locale }) {
         </section>
         {paid && deep && reportToken && <DeepReport data={deep} token={reportToken} locale={locale} />}
         {paid && plus && reportToken && <PlusReport data={plus} token={reportToken} locale={locale} original={originalView} />}
-        <label className="consent-label result-consent"><input type="checkbox" checked={shareConsent} onChange={(event) => setShareConsent(event.target.checked)} />{paidText.shareConsent}</label>
         <div className="result-actions">
-          <button className="secondary-button" onClick={downloadImage}>{deepText.download}</button>
           <button className="secondary-button" onClick={reset}>{text.retake}</button>
-          <button className="primary-button" disabled={shareBusy || !shareConsent} onClick={shareResult}>{copied ? text.copied : text.share} ↗</button>
         </div>
-        {error && <p className="inline-error" role="alert">{error}</p>}
         {!paid && saveLocal && localSaved && <p className="local-save-note">{deepText.saved} <button className="text-button" onClick={discardLocal}>{deepText.discard}</button></p>}
         <ReportRecovery locale={locale} />
         <Footer locale={locale} onLocale={switchLocale} />

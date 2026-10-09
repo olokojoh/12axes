@@ -45,22 +45,43 @@ export async function verifyQuiz(page, base, { locales = ["en", "pt", "es", "ru"
     assert.equal(await page.evaluate(() => document.querySelector(".plan-overview") === null), true);
     assert.equal(await page.evaluate(() => document.querySelector(".purchase-consent input")?.checked), true);
     assert.equal(await page.evaluate(() => document.querySelectorAll(".plan-attention-star").length), 3);
-    assert.deepEqual(await page.evaluate(() => [...document.querySelectorAll(".plan-options article")].map(card => ({
-      included: card.querySelectorAll(".feature-included").length,
-      excluded: card.querySelectorAll(".feature-excluded").length,
-    }))), [{ included: 4, excluded: 8 }, { included: 8, excluded: 4 }, { included: 12, excluded: 0 }]);
+    assert.deepEqual(await page.evaluate(() => [...document.querySelectorAll(".plan-options article")].map(card => card.querySelectorAll(".plan-highlights li").length)), [3, 3, 3]);
     assert.equal(await page.evaluate(() => {
       const buttons = [...document.querySelectorAll(".plan-options button")].map(button => button.getBoundingClientRect());
-      const banner = document.querySelector(".analytics-consent")?.getBoundingClientRect();
-      const bottom = banner ? Math.min(innerHeight, banner.top) : innerHeight;
-      return buttons.length === 3 && Math.abs(buttons[0].top - buttons[1].top) < 1
-        && buttons.every(button => button.top >= 0 && button.bottom <= bottom && button.left >= 0 && button.right <= innerWidth);
-    }), true, "All checkout buttons must be aligned and fully visible after completion");
+      const cards = [...document.querySelectorAll(".plan-options article")].map(card => card.getBoundingClientRect());
+      const withinCards = buttons.every((button, index) => button.height >= 44
+        && button.left >= cards[index].left && button.right <= cards[index].right
+        && button.top >= cards[index].top && button.bottom <= cards[index].bottom);
+      if (matchMedia("(max-width: 640px)").matches) {
+        const readable = [...document.querySelectorAll(".plan-options h3, .plan-options .plan-summary, .plan-options .plan-highlights li, .plan-options button")]
+          .every(element => parseFloat(getComputedStyle(element).fontSize) >= 14);
+        return withinCards && readable && document.documentElement.scrollWidth <= innerWidth
+          && cards.every((card, index) => card.left >= 0 && card.right <= innerWidth
+            && Math.abs(card.left - cards[0].left) < 1 && Math.abs(card.width - cards[0].width) < 1
+            && (index === 0 || card.top >= cards[index - 1].bottom));
+      }
+      return withinCards && buttons.every(button => Math.abs(button.top - buttons[0].top) < 1);
+    }), true, "Mobile cards must stack without overflow, with readable text and accessible buttons; desktop buttons stay aligned inside their cards");
     assert.equal(await page.evaluate(() => {
       const match = document.querySelector(".match-card.large")?.getBoundingClientRect();
       const cta = document.querySelector(".paid-report-cta")?.getBoundingClientRect();
-      return Boolean(match && cta && match.top < cta.top);
-    }), true);
+      const actions = [document.querySelector('.result-quick-actions a[href="#free-results"]'),
+        document.querySelector(".result-quick-actions > button"), document.querySelector(".result-sharing-top summary")];
+      return Boolean(match && cta && match.top < cta.top && actions.every(action => {
+        if (!action) return false;
+        const bounds = action.getBoundingClientRect();
+        return bounds.top >= match.bottom && bounds.bottom <= cta.top && bounds.height >= 44;
+      }));
+    }), true, "Free results, image download and sharing must be reachable before the paid plans");
+    await page.press(".plan-comparison summary", "Enter");
+    assert.equal(await page.evaluate(() => document.querySelector(".plan-comparison").open), true);
+    assert.deepEqual(await page.evaluate(() => [0, 1, 2].map(index => {
+      const cells = [...document.querySelectorAll(".plan-comparison tbody tr")].map(row => row.querySelectorAll("td")[index]);
+      return {
+        included: cells.filter(cell => cell.querySelector(".feature-included")).length,
+        excluded: cells.filter(cell => cell.querySelector(".feature-excluded")).length,
+      };
+    })), [{ included: 4, excluded: 8 }, { included: 8, excluded: 4 }, { included: 12, excluded: 0 }], "Expanded comparison must preserve every tier’s existing entitlements");
   }
 
   for (const locale of locales) {

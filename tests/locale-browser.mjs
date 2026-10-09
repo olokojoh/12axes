@@ -54,6 +54,7 @@ export async function verifyLocaleState(page, base, { paidUrl, friendUrl } = {})
   await page.waitForFunction(() => !!document.querySelector(".result-shell"));
   const axes = await page.evaluate(() => [...document.querySelectorAll(".axis-results .axis-bar span")].map(e => e.style.width));
   await page.fill('.report-recovery input[type="email"]', "locale-check@example.com");
+  await page.click(".result-sharing-top summary");
   await page.click(".result-consent input");
   await page.click(".purchase-consent:not(.answer-consent) input");
   for (const locale of ["pt", "es", "ru", "zh", "en"]) {
@@ -62,6 +63,7 @@ export async function verifyLocaleState(page, base, { paidUrl, friendUrl } = {})
     assert.deepEqual(await page.evaluate(() => [...document.querySelectorAll(".axis-results .axis-bar span")].map(e => e.style.width)), axes);
     assert.equal(await page.evaluate(() => document.querySelector('.report-recovery input').value), "locale-check@example.com");
     assert.equal(await page.evaluate(() => document.querySelector('.result-consent input').checked), true);
+    assert.equal(await page.evaluate(() => document.querySelector('.result-sharing-top').open), true);
     assert.equal(await page.evaluate(() => [...document.querySelectorAll('.plan-options button')].every(e => e.disabled)), true);
   }
   console.log("Home, format, question/answer, extension, free scores and recovery draft preserved across languages");
