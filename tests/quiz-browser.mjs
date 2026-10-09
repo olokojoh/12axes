@@ -75,6 +75,7 @@ export async function verifyQuiz(page, base, { locales = ["en", "pt", "es", "ru"
     }), true, "Free results, image download and sharing must be reachable before the paid plans");
     await page.press(".plan-comparison summary", "Enter");
     assert.equal(await page.evaluate(() => document.querySelector(".plan-comparison").open), true);
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, "Expanded comparison must not overflow the viewport");
     assert.deepEqual(await page.evaluate(() => [0, 1, 2].map(index => {
       const cells = [...document.querySelectorAll(".plan-comparison tbody tr")].map(row => row.querySelectorAll("td")[index]);
       return {

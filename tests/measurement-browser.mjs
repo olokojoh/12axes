@@ -53,6 +53,7 @@ export async function verifyMeasurement(page, base) {
     await page.press(".extend-card .answer-button:last-child", "Enter");
     await page.waitForSelector(".result-shell");
     assert.deepEqual(await events(), [], "Denied consent must not record the quiz or result");
+    assert.deepEqual(await page.evaluate(() => [...document.querySelectorAll(".result-plan-options button")].map(button => button.dataset.planState)), ["ready", "ready", "ready"]);
 
     await page.evaluate(() => {
       history.replaceState(null, "", location.pathname + "?est=measurement-private-score#report=measurement-private-token");
@@ -114,7 +115,41 @@ export async function verifyMeasurement(page, base) {
     assert.ok(runEvents.some(event => event.quiz_length === 36) && runEvents.some(event => event.quiz_length === 60));
     assert.equal(runEvents.filter(event => event.name === "quiz_complete" && event.quiz_length === 60).length, 1);
     assert.doesNotMatch(JSON.stringify(quizEvents), /"answers"|"axes"|"questionIds"|"ideology"|"reportToken"/);
-    console.log("Consent boundaries, late result measurement, visible plan exposure, mocked checkout failure and 36→60 funnel passed");
+    await page.waitForFunction(() => JSON.parse(localStorage.getItem("12axes-local-test")).mode === "results");
+    await page.goto(origin);
+    await page.waitForSelector(".resume-test .primary-button");
+    await page.evaluate(() => {
+      window.__measurementTest = { events: [] };
+      window.gtag = (...args) => window.__measurementTest.events.push(args);
+    });
+    await page.press(".resume-test .primary-button", "Enter");
+    await page.waitForFunction(() => window.__measurementTest.events.some(event => event[1] === "result_preview_view"));
+    const resumed = await events();
+    assert.equal(resumed.find(event => event.name === "result_preview_view").measurement_entry, "resume");
+    assert.equal(resumed.some(event => event.name === "quiz_resume"), false, "Reopening completed results is not resumed answering");
+
+    await page.goto(origin + "/privacy");
+    await page.evaluate(() => {
+      const draft = JSON.parse(localStorage.getItem("12axes-local-test"));
+      draft.mode = "quiz";
+      draft.questionIndex = 8;
+      draft.answers = Object.fromEntries(draft.questionIds.slice(0, 8).map(id => [id, draft.answers[id]]));
+      localStorage.setItem("12axes-local-test", JSON.stringify(draft));
+    });
+    await page.goto(origin);
+    await page.waitForSelector(".resume-test .primary-button");
+    await page.evaluate(() => {
+      window.gtag = () => {};
+      Object.defineProperty(crypto, "randomUUID", { configurable: true, value: () => { throw new Error("Measurement UUID unavailable"); } });
+    });
+    await page.press(".resume-test .primary-button", "Enter");
+    await page.waitForSelector(".quiz-shell .answer-grid");
+    assert.equal(await page.evaluate(() => Number(document.querySelector(".progress-copy b").textContent.match(/\d+/)[0])), 9);
+    assert.equal(await page.evaluate(() => Object.keys(JSON.parse(localStorage.getItem("12axes-local-test")).answers).length), 8, "Measurement failure must not delete a saved test");
+    await page.press(".answer-grid button:first-child", "Enter");
+    await page.waitForFunction(() => Number(document.querySelector(".progress-copy b").textContent.match(/\d+/)[0]) === 10);
+    assert.equal(await page.evaluate(() => document.querySelector(".inline-error")?.textContent ?? null), null);
+    console.log("Consent, late result views, visibility, checkout errors, 36→60, result resume and UUID failure preserving saved answers passed");
   } finally {
     await page.goto(origin + "/privacy");
     await page.waitForSelector(".commerce-article");

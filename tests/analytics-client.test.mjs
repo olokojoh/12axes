@@ -47,17 +47,34 @@ test("external attribution keeps only the source origin, never sensitive URL con
   assert.doesNotMatch(JSON.stringify(state.events()), /private-path|score=85|private-answer|private-referrer-token/);
 });
 
-test("same-site and Stripe payment returns never become referral sources", async () => {
+test("same-site domain family and payment returns never become referral sources", async () => {
   for (const referrer of [
     "https://12axes.net/results?share=private-share#report=private-token",
+    "http://12axes.net/results",
+    "https://www.12axes.net/results",
+    "http://www.12axes.net/results",
+    "https://report.preview.12axes.net/results",
     "https://checkout.stripe.com/c/pay/private-checkout",
     "https://buy.stripe.com/private-payment",
     "https://stripe.com/private-payment",
+    "https://link.com/private-payment",
+    "https://checkout.link.com/private-payment",
+    "https://stripe.network/private-payment",
+    "https://checkout.stripe.network/private-payment",
     "javascript:private-token",
   ]) {
     const state = await setup("12axes.net", false, { referrer });
     state.client.trackEvent("result_preview_view", { language: "en" });
     for (const event of state.events().filter(event => event[0] === "config" || event[0] === "event")) assert.equal(event[2].page_referrer, "");
+  }
+});
+
+test("lookalike domains remain external referrals without their private URL contents", async () => {
+  for (const host of ["not12axes.net", "12axes.net.example.com", "evilstripe.com", "stripe.com.example.com", "notlink.com", "link.com.example.com", "evilstripe.network", "stripe.network.example.com"]) {
+    const state = await setup("12axes.net", false, { referrer: `https://${host}/private-path?score=85#private-token` });
+    state.client.trackEvent("result_preview_view", { language: "en" });
+    for (const event of state.events().filter(event => event[0] === "config" || event[0] === "event")) assert.equal(event[2].page_referrer, `https://${host}`);
+    assert.doesNotMatch(JSON.stringify(state.events()), /private-path|score=85|private-token/);
   }
 });
 
@@ -86,6 +103,17 @@ test("funnel measurement admits a random run ID and stages while excluding polit
   assert.equal(event.progress_stage, 50);
   assert.equal(event.choice, "extend");
   assert.doesNotMatch(JSON.stringify(event), /private-answer|private-score|private-label|private-token/);
+});
+
+test("plan readiness is measured without allowing sensitive checkout or result fields", async () => {
+  const state = await setup();
+  for (const planState of ["ready", "requires_quiz"]) {
+    state.client.trackEvent("plan_view", { plan: "basic", plan_state: planState, answers: "private-answer", report: "private-token", checkout_url: "private-checkout" });
+    const event = state.events().at(-1)[2];
+    assert.equal(event.plan, "basic");
+    assert.equal(event.plan_state, planState);
+    assert.doesNotMatch(JSON.stringify(event), /private-answer|private-token|private-checkout/);
+  }
 });
 
 test("preview never loads the production measurement tag", async () => {

@@ -193,6 +193,7 @@ export function TestApp({ locale: initialLocale }: { locale: Locale }) {
   const resultOfferRef = useRef<HTMLElement>(null);
   const resultEntry = useRef("quiz");
   const seenResultEvents = useRef(new Set<string>());
+  const viewedReportToken = useRef<string | null>(null);
   const quizMeasurement = useRef<{ id: string; entry: string; seen: Set<string> } | null>(null);
   const measurementEntry = useRef("midway");
   const [paid, setPaid] = useState(false);
@@ -214,19 +215,22 @@ export function TestApp({ locale: initialLocale }: { locale: Locale }) {
   const neutralCount = deep?.neutralCount ?? questions.filter(q => data?.answerOptions.find(a => a.id === answers[q.id])?.scoreTowardAgreement === 0.5).length;
 
   const measureQuiz = useCallback((name: string, length: number, params: Record<string, string | number> = {}) => {
-    if (!window.gtag || window.localStorage.getItem("12axes:analytics-consent") !== "granted") return false;
-    if (!quizMeasurement.current) {
-      quizMeasurement.current = { id: crypto.randomUUID(), entry: measurementEntry.current, seen: new Set() };
-      if (!["quiz_start", "quiz_resume", "quiz_observation_start"].includes(name)) {
-        trackEvent("quiz_observation_start", { language: locale, device: deviceClass(), quiz_length: length, quiz_run_id: quizMeasurement.current.id, measurement_entry: measurementEntry.current });
+    try {
+      if (!window.gtag || window.localStorage.getItem("12axes:analytics-consent") !== "granted") return false;
+      if (!quizMeasurement.current) {
+        quizMeasurement.current = { id: crypto.randomUUID(), entry: measurementEntry.current, seen: new Set() };
+        if (!["quiz_start", "quiz_resume", "quiz_observation_start"].includes(name)) {
+          quizMeasurement.current.seen.add("quiz_observation_start:" + length + ":");
+          trackEvent("quiz_observation_start", { variant: "baseline", language: locale, device: deviceClass(), quiz_length: length, quiz_run_id: quizMeasurement.current.id, measurement_entry: measurementEntry.current });
+        }
       }
-    }
-    const measurement = quizMeasurement.current;
-    const key = name + ":" + length + ":" + (params.progress_stage ?? params.choice ?? "");
-    if (measurement.seen.has(key)) return true;
-    trackEvent(name, { variant: "baseline", language: locale, device: deviceClass(), quiz_length: length, quiz_run_id: measurement.id, measurement_entry: measurement.entry, ...params });
-    measurement.seen.add(key);
-    return true;
+      const measurement = quizMeasurement.current;
+      const key = name + ":" + length + ":" + (params.progress_stage ?? params.choice ?? "");
+      if (measurement.seen.has(key)) return true;
+      trackEvent(name, { variant: "baseline", language: locale, device: deviceClass(), quiz_length: length, quiz_run_id: measurement.id, measurement_entry: measurement.entry, ...params });
+      measurement.seen.add(key);
+      return true;
+    } catch { return false; }
   }, [locale]);
 
   useEffect(() => {
@@ -275,7 +279,7 @@ export function TestApp({ locale: initialLocale }: { locale: Locale }) {
       const selected = savedTest.questionIds.map(id => bank.questions.find(q => q.id === id));
       if (selected.some(q => !q) || Object.entries(savedTest.answers).some(([id, value]) => !savedTest.questionIds.includes(id) || !bank.answerOptions.some(option => option.id === value))) throw new Error();
       quizMeasurement.current = null; measurementEntry.current = "resume";
-      if (savedTest.mode !== "results") measureQuiz("quiz_resume", selected.length);
+      if (savedTest.mode !== "results" && !measureQuiz("quiz_resume", selected.length)) measurementEntry.current = "midway";
       setQuestions(selected as Question[]); setAnswers(savedTest.answers); setQuestionIndex(savedTest.questionIndex); setVariant(savedTest.variant); setSaveLocal(true); setSavedTest(null);
       setShareId(null); setShareConsent(false); setCopied(false); setPrivateLinkCopied(false);
       if (savedTest.mode === "results" && selected.every(q => savedTest.answers[q!.id])) await fetchResult(calculateAxes(selected as Question[], savedTest.answers, bank), selected.length, "local_resume");
@@ -411,6 +415,7 @@ export function TestApp({ locale: initialLocale }: { locale: Locale }) {
     setResultAxes(axes);
     setResultQuizLength(length);
     seenResultEvents.current.clear();
+    viewedReportToken.current = null;
     resultEntry.current = entryType;
     try {
       await loadData();
@@ -476,7 +481,8 @@ export function TestApp({ locale: initialLocale }: { locale: Locale }) {
       if (payload.status === "pending") { setReportPending(true); return; }
       if (!response.ok || payload.status !== "paid") throw new Error();
       await loadData();
-      seenResultEvents.current.clear();
+      if (viewedReportToken.current !== token) seenResultEvents.current.clear();
+      viewedReportToken.current = token;
       resultEntry.current = "paid_report";
       setPaid(true);
       setPlan(payload.plan);
@@ -571,7 +577,7 @@ export function TestApp({ locale: initialLocale }: { locale: Locale }) {
         const plan = element.dataset.plan;
         const key = event + ":" + (plan ?? "");
         if (seenResultEvents.current.has(key)) continue;
-        trackEvent(event, { variant: experimentVariant, language: locale, device: deviceClass(), quiz_length: resultQuizLength, entry_type: resultEntry.current, ...(plan ? { plan } : {}) });
+        trackEvent(event, { variant: experimentVariant, language: locale, device: deviceClass(), quiz_length: resultQuizLength, entry_type: resultEntry.current, ...(plan ? { plan, plan_state: element.dataset.planState! } : {}) });
         if (event === "plan_view" && plan === "basic") trackEvent("paywall_view", { variant: experimentVariant, language: locale, device: deviceClass(), quiz_length: resultQuizLength });
         seenResultEvents.current.add(key);
       }
@@ -581,7 +587,7 @@ export function TestApp({ locale: initialLocale }: { locale: Locale }) {
         const params = { variant: experimentVariant, language: locale, device: deviceClass(), quiz_length: resultQuizLength, entry_type: resultEntry.current };
         if (paid) trackEvent("full_report_view", { ...params, plan });
         else if (["quiz", "local_resume"].includes(resultEntry.current)) {
-          if (!quizMeasurement.current) measurementEntry.current = "result";
+          if (!quizMeasurement.current && resultEntry.current !== "local_resume") measurementEntry.current = "result";
           measureQuiz("result_preview_view", resultQuizLength, params);
         } else trackEvent("result_preview_view", params);
         seenResultEvents.current.add("result_view");
@@ -800,7 +806,7 @@ export function TestApp({ locale: initialLocale }: { locale: Locale }) {
       <main className="app-shell quiz-shell">
         <AppHeader locale={locale} onLocale={switchLocale} compact onHome={() => setMode("home")} />
         <section className="question-card extend-card">
-          <span className="eyebrow">{text.progress(36, 60)}</span>
+          <span className="eyebrow">{text.progress(36, 36)}</span>
           <h1>{text.extendTitle}</h1>
           <p>{offerText.extendTime}</p>
           <div className="answer-grid two">
@@ -853,7 +859,7 @@ export function TestApp({ locale: initialLocale }: { locale: Locale }) {
                     <h3>{reportPlan === "deep" ? deepText.name : reportPlan === "basic" ? plusText.basic : plusText.plus}</h3>
                     <div className="plan-summary"><p>{offerText.purpose[reportPlan]}</p>{reportPlan === "deep" && !currentEvidence && <p className="plan-requirement">{deepText.needsQuiz}</p>}</div>
                     <p className="plan-price">{reportPlan === "deep" ? upgradeContext ? `US$${upgradeContext.plan === "plus" ? "5" : "10"}` : deepText.amount : reportPlan === "basic" ? plusText.basicAmount : plusText.plusAmount}</p>
-                    <button data-measure-event="plan_view" data-plan={reportPlan} className="primary-button report-buy-button" disabled={!reportConsent || checkoutBusy || (reportPlan === "deep" && !!currentEvidence && !answerConsent)} onClick={() => reportPlan === "deep" && !currentEvidence ? prepareDeepRetake() : startCheckout(reportPlan)}>
+                    <button data-measure-event="plan_view" data-plan={reportPlan} data-plan-state={reportPlan === "deep" && !currentEvidence ? "requires_quiz" : "ready"} className="primary-button report-buy-button" disabled={!reportConsent || checkoutBusy || (reportPlan === "deep" && !!currentEvidence && !answerConsent)} onClick={() => reportPlan === "deep" && !currentEvidence ? prepareDeepRetake() : startCheckout(reportPlan)}>
                       <span>{checkoutBusy ? paidText.wait : reportPlan === "deep" && !currentEvidence ? deepText.retake : <>{plusText.purchase} · <b>{reportPlan === "deep" ? upgradeContext ? `US$${upgradeContext.plan === "plus" ? "5" : "10"}` : deepText.amount : reportPlan === "basic" ? plusText.basicAmount : plusText.plusAmount}</b></>}<span aria-hidden="true"> →</span></span>
                     </button>
                     <div className="plan-estimate" data-estimated={locale !== "en"}><CurrencyEstimate locale={locale} amount={reportPlan === "deep" ? upgradeContext ? upgradeContext.plan === "plus" ? 5 : 10 : 14.99 : reportPlan === "basic" ? 4.99 : 9.99} /></div>
@@ -875,7 +881,7 @@ export function TestApp({ locale: initialLocale }: { locale: Locale }) {
                 <summary>{offerText.sample}</summary>
                 <p>{offerText.sampleNote}</p>
                 <h3>{plusText.basic} · {offerText.sampleAxis}</h3>
-                <p>{axisReading(locale, 0, 65, offerText.sampleLeft, offerText.sampleRight)}</p>
+                <p>{offerText.sampleReading}</p>
                 <h3>{plusText.plus}</h3><p>{offerText.sampleComparison}</p>
                 <h3>{deepText.name}</h3><p>{offerText.sampleEvidence}</p>
               </details>
@@ -886,9 +892,9 @@ export function TestApp({ locale: initialLocale }: { locale: Locale }) {
             {error && <p className="inline-error" role="alert">{error}</p>}
           </section>
         </div>
-        <section className="result-intro" id="free-results" data-measure-event="free_result_view">
+        <section className="result-intro" id="free-results">
           <span className="eyebrow">{text.resultEyebrow}</span>
-          <h2>{text.resultTitle}</h2>
+          <h2 data-measure-event="free_result_view">{text.resultTitle}</h2>
           <p>{text.resultLead}</p>
           {!!questions.length && <p>{deepText.neutral}: {neutralCount} / {questions.length}</p>}
           {(questions.length > 0 && neutralCount >= questions.length / 2) && <p className="result-caveat">{deepText.insufficient}</p>}

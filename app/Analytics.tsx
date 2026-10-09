@@ -40,7 +40,7 @@ function measurementReferrer() {
   try {
     const parsed = new URL(referrer);
     if (parsed.origin === window.location.origin || !["http:", "https:"].includes(parsed.protocol)
-      || parsed.hostname === "stripe.com" || parsed.hostname.endsWith(".stripe.com")) return "";
+      || ["12axes.net", "stripe.com", "link.com", "stripe.network"].some(domain => parsed.hostname === domain || parsed.hostname.endsWith("." + domain))) return "";
     return parsed.origin;
   } catch {
     return "";
@@ -66,7 +66,7 @@ function enableAnalytics() {
 
 export function trackEvent(name: string, params: Record<string, string | number | boolean> = {}) {
   if (typeof window === "undefined" || !window.gtag || window.localStorage.getItem("12axes:analytics-consent") !== "granted") return;
-  const allowed = new Set(["variant", "language", "device", "quiz_length", "entry_type", "plan", "error_type", "quiz_run_id", "measurement_entry", "progress_stage", "choice"]);
+  const allowed = new Set(["variant", "language", "device", "quiz_length", "entry_type", "plan", "plan_state", "error_type", "quiz_run_id", "measurement_entry", "progress_stage", "choice"]);
   const safe = Object.fromEntries(Object.entries(params).filter(([key]) => allowed.has(key)));
   window.gtag("event", name, { ...safe, page_location: measurementPage(), page_referrer: measurementReferrer(), page_title: "12Axes" });
 }
