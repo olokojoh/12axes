@@ -31,3 +31,11 @@ Native OS sharing is capability-dependent. Automated native success/cancel/error
 Local Claude Code performed a read-only review using actual source reads. Its confirmed P2 finding was that unchecking sharing consent after publication could imply withdrawal even though the public link remained active. The second iteration locks that consent once a link is created, preserves publication status across language changes, and provides localized contact links for removal. Existing expiry and deletion jobs also cascade to preview images. Root review additionally fixed overlapping landscape labels and the robots rule that otherwise excluded preview images.
 
 Claude Code's final follow-up confirmed that the consent finding is resolved, the five-language copy is complete, and the robots exception is correct. It reported no remaining confirmed actionable findings in this patch. Final build, TypeScript and all 69 tests passed after the second iteration.
+
+## Hosted preview acceptance
+
+Cloudflare's native Git deployment for `dev` commit `8e59375` completed successfully. All five languages passed real browser creation and upload, first-response OG/Twitter HTML, unauthenticated PNG GET/HEAD, portrait download and opening the corresponding free result. All ten downloaded landscape/portrait PNG QR codes decoded to their own live preview URL. URLs remained on the configured dev origin. Requests with a social-crawler user agent also received the correct HTML, and robots allowed the public image path.
+
+The retained authorized sandbox Basic report from the recovery email passed all five languages via real dev UI and independent cookie-free API requests. Summary, 12 paid readings, top 10 matches, collapsed upgrades, language switching and reload preserved access. No new email or payment was sent in this task; payment behavior remains covered by the existing automated regression suite.
+
+Facebook's actual composer-preview check was blocked by a browser-owned notification permission prompt, which transferred the TaskSpace to user control. Browser operation stopped immediately; no Publish/Send action occurred. Actual Facebook preview rendering is **not verified**. The synthetic Web Share browser tests also do not replace testing an actual receiving mobile app.
