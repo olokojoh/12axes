@@ -15,11 +15,14 @@ import { plusCopy } from "./plus-copy";
 import { resultOfferCopy } from "./result-offer-copy";
 import { SharePanel } from "./SharePanel";
 import { ResultSummary } from "./ResultSummary";
+import { AxisBar, AxisGlyph, MatchGauge, ProfileRadar } from "./ResultVisuals";
+import { AnswerMark, AxisGuide, ConceptMark, FormatIllustration, HomeProfilePreview, visualCopy } from "./HomeVisuals";
+import "./visual-refresh.css";
 import { resultSummaryCopy } from "./result-summary-copy";
 import type { PlusReportData } from "./lib/matching";
 import { homeTitles, homeDescriptions, homeSchema } from "./home-seo";
 import { CurrencyEstimate } from "./CurrencyEstimate";
-import { axisExplanations, contactLabels, copy, htmlLang, localeNames, localePath, locales, publicContactUrl, type Locale } from "./i18n";
+import { contactLabels, copy, htmlLang, localeNames, localePath, locales, publicContactUrl, type Locale } from "./i18n";
 
 type Question = {
   id: string;
@@ -97,22 +100,6 @@ function deviceClass() {
   return window.matchMedia("(pointer: coarse)").matches ? "mobile" : "desktop";
 }
 
-const exampleUi = {
-  en: { example: "Example result", position: "Third position", match: "match", country: "Most compatible country", personality: "Most compatible personality", description: "Authoritarian nationalist movement that emerged in 1930s Brazil, with a Christian and corporatist base.", countryDescription: "Parliamentary monarchy with a strong central state.", personalityDescription: "Leader of Brazilian Integralism.", real: "Real example", title: "Here's what your result looks like" },
-  pt: { example: "Resultado de exemplo", position: "Terceira posição", match: "compatível", country: "País mais compatível", personality: "Personalidade mais compatível", description: "Movimento nacionalista autoritário surgido no Brasil dos anos 1930, de base cristã e corporativista.", countryDescription: "Monarquia parlamentar com Estado central forte.", personalityDescription: "Líder do Integralismo Brasileiro.", real: "Exemplo real", title: "Veja como é o seu resultado" },
-  es: { example: "Resultado de ejemplo", position: "Tercera posición", match: "coincide", country: "País más compatible", personality: "Personalidad más compatible", description: "Movimiento nacionalista autoritario surgido en Brasil en los años 1930, de base cristiana y corporativista.", countryDescription: "Monarquía parlamentaria con un Estado central fuerte.", personalityDescription: "Líder del Integralismo Brasileño.", real: "Ejemplo real", title: "Así se verá tu resultado" },
-  ru: { example: "Пример результата", position: "Третья позиция", match: "совпадение", country: "Ближайшая страна", personality: "Ближайшая личность", description: "Авторитарное националистическое движение, возникшее в Бразилии в 1930-х годах.", countryDescription: "Парламентская монархия с сильным центром.", personalityDescription: "Лидер бразильского интегрализма.", real: "Пример", title: "Как выглядит результат" },
-  zh: { example: "结果示例", position: "第三位置", match: "匹配", country: "最匹配的国家", personality: "最匹配的人物", description: "20 世纪 30 年代兴起于巴西的威权民族主义运动，具有基督教与法团主义基础。", countryDescription: "拥有强大中央国家的议会君主制。", personalityDescription: "巴西整合主义运动领导人。", real: "真实示例", title: "你的结果会是这样" },
-} as const;
-
-const previewAxes = {
-  en: [["Representation", "Democracy", 13, "Autocracy", 87], ["Economy", "Public", 68, "Private", 32], ["Morality", "Progressive", 5, "Traditionalist", 95]],
-  pt: [["Representação", "Democracia", 13, "Autocracia", 87], ["Economia", "Público", 68, "Privado", 32], ["Moralidade", "Progressista", 5, "Tradicionalista", 95]],
-  es: [["Representación", "Democracia", 13, "Autocracia", 87], ["Economía", "Público", 68, "Privado", 32], ["Moralidad", "Progresista", 5, "Tradicionalista", 95]],
-  ru: [["Представительство", "Демократия", 13, "Автократия", 87], ["Экономика", "Общественное", 68, "Частное", 32], ["Мораль", "Прогрессизм", 5, "Традиционализм", 95]],
-  zh: [["政治代表", "民主", 13, "威权", 87], ["经济", "公共", 68, "私营", 32], ["道德", "进步", 5, "传统", 95]],
-} as const;
-
 const auxiliaryUi = {
   en: { recommended: "Recommended", match: "match", how: "How it works", axes: "12 axes", spectrum: "Political spectrum", versions: "Versions", privacy: "No account · Scoring in this browser", loadError: "The question bank could not be loaded. Please try again.", resultError: "The result service is temporarily unavailable. Your answers remain in this browser.", answerError: "Please answer every question before viewing the result.", fallbackNote: "", footer: ["All results", "Ideologies", "Privacy", "License"] },
   pt: { recommended: "Recomendado", match: "compatível", how: "Como funciona", axes: "12 eixos", spectrum: "Espectro político", versions: "Versões", privacy: "Sem conta · Pontuação neste navegador", loadError: "Não foi possível carregar as perguntas. Tente novamente.", resultError: "O serviço de resultados está indisponível. Suas respostas continuam neste navegador.", answerError: "Responda a todas as perguntas antes de ver o resultado.", fallbackNote: "", footer: ["Todos os resultados", "Ideologias", "Privacidade", "Licença"] },
@@ -161,10 +148,6 @@ function extraQuestions(data: QuizData, used: Set<string>) {
     shuffle(questions.filter((question) => question.agreePole === "LEFT"))[0],
     shuffle(questions.filter((question) => question.agreePole === "RIGHT"))[0],
   ]).filter(Boolean));
-}
-
-function initials(name: string) {
-  return name.split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase();
 }
 
 export function TestApp({ locale: initialLocale }: { locale: Locale }) {
@@ -710,10 +693,10 @@ export function TestApp({ locale: initialLocale }: { locale: Locale }) {
           <h1 id="format-title">{text.formatTitle}</h1>
           <p>{text.formatLead}</p>
           <div className="format-grid">
-            {text.formats.map(([id, label, count, description, duration]) => (
+            {text.formats.map(([id, label, count, description, duration], index) => (
               <button className={`format-card ${id === "extended" ? "featured" : ""}`} key={id} onClick={() => chooseVariant(id as Variant)}>
                 {id === "extended" && <span className="recommended">{auxiliaryUi[locale].recommended}</span>}
-                <strong>{label}</strong>
+                <FormatIllustration level={index} /><strong>{label}</strong>
                 <b>{count}</b>
                 <span>{description}</span>
                 <small>{duration}</small>
@@ -744,8 +727,9 @@ export function TestApp({ locale: initialLocale }: { locale: Locale }) {
       <main className="app-shell quiz-shell">
         <AppHeader locale={locale} onLocale={switchLocale} compact onHome={() => { cancelAdvance(); setMode("home"); }} action={text.retake} onAction={reset} />
         <div className="progress-wrap" aria-label={text.progress(questionIndex + 1, questions.length)}>
-          <div className="progress-copy"><span>{currentAxis?.label}</span><b>{text.progress(questionIndex + 1, questions.length)}</b></div>
-          <div className="progress-track"><span style={{ width: `${(questionIndex + 1) / questions.length * 100}%` }} /></div>
+          <div className="progress-copy"><span className="progress-axis"><AxisGlyph index={data?.axes.findIndex(axis => axis.id === currentAxis?.id) ?? 0} size={22} />{currentAxis?.label}</span><b>{text.progress(questionIndex + 1, questions.length)}</b></div>
+          <div className="progress-track"><span style={{ width: `${Object.keys(answers).length / questions.length * 100}%` }} /></div>
+          <div className="quiz-axis-progress">{data?.axes.map((axis, index) => { const chosen = questions.filter(question => question.axisId === axis.id); const completed = chosen.filter(question => answers[question.id]).length; return <span key={axis.id} role="img" className={completed === chosen.length ? "done" : currentAxis?.id === axis.id ? "current" : ""} title={`${axis.label}: ${completed}/${chosen.length}`} aria-label={`${axis.label}: ${completed}/${chosen.length}`}><AxisGlyph index={index} size={19} /><small>{completed}/{chosen.length}</small></span>; })}</div>
         </div>
         <section className="question-card">
           <header>
@@ -762,7 +746,7 @@ export function TestApp({ locale: initialLocale }: { locale: Locale }) {
                 aria-disabled={answerPending}
                 onClick={() => answerQuestion(option.id)}
               >
-                <span>{["＋＋", "＋", "•", "−", "−−"][index]}</span>
+                <span><AnswerMark index={index} /></span>
                 <b>{option.label}</b>
               </button>
             ))}
@@ -789,7 +773,7 @@ export function TestApp({ locale: initialLocale }: { locale: Locale }) {
       <main className="app-shell quiz-shell">
         <AppHeader locale={locale} onLocale={switchLocale} compact onHome={() => setMode("home")} />
         <section className="question-card extend-card">
-          <span className="eyebrow">{text.progress(36, 36)}</span>
+          <div className="extend-visual"><MatchGauge value={100} label={visualCopy[locale].complete} size={100} /><span><b>36</b><small>{visualCopy[locale].questions}</small></span><span aria-hidden="true">→</span><span><b>60</b><small>{visualCopy[locale].questions}</small></span></div><span className="eyebrow">{text.progress(36, 36)}</span>
           <h1>{text.extendTitle}</h1>
           <p>{offerText.extendTime}</p>
           <div className="answer-grid two">
@@ -811,7 +795,7 @@ export function TestApp({ locale: initialLocale }: { locale: Locale }) {
           <div className="result-quick-actions">
             <a className="secondary-button" href="#free-results" onClick={event => { event.preventDefault(); trackEvent("free_result_click", { language: locale, device: deviceClass(), quiz_length: resultQuizLength }); document.getElementById("free-results")?.scrollIntoView(); }}>{paid ? resultSummaryCopy[locale].readReport : deepText.freeResults} ↓</a>
             <button className="secondary-button" onClick={downloadImage}>{deepText.download}</button>
-            <SharePanel key={resultAxes.join(",") + ":" + resultQuizLength} locale={resultLocale} axes={resultAxes} quizLength={resultQuizLength} result={result} />
+            <a className="secondary-button" href="#share-result" onClick={event => { event.preventDefault(); document.getElementById("share-result")?.scrollIntoView(); }}>{visualCopy[locale].share} ↗</a>
           </div>
           <section className="paid-report-cta">
             <h2>{paid ? plan === "deep" ? deepText.name : plan === "plus" ? plusText.plus : paidText.unlocked : plusText.choose}</h2>
@@ -868,6 +852,7 @@ export function TestApp({ locale: initialLocale }: { locale: Locale }) {
             {error && <p className="inline-error" role="alert">{error}</p>}
           </section>
         </div>
+        <div className="result-social-section" id="share-result"><SharePanel key={resultAxes.join(",") + ":" + resultQuizLength} locale={resultLocale} axes={resultAxes} quizLength={resultQuizLength} result={result} /></div>
         <section className="result-intro" id="free-results">
           <span className="eyebrow">{text.resultEyebrow}</span>
           <h2 data-measure-event="free_result_view">{text.resultTitle}</h2>
@@ -876,15 +861,15 @@ export function TestApp({ locale: initialLocale }: { locale: Locale }) {
           {(questions.length > 0 && neutralCount >= questions.length / 2) && <p className="result-caveat">{deepText.insufficient}</p>}
           {auxiliaryUi[locale].fallbackNote && <p className="result-note">{auxiliaryUi[locale].fallbackNote}</p>}
         </section>
+        {!paid && <section className="result-map"><div><span className="eyebrow">{visualCopy[locale].axes}</span><h2>{visualCopy[locale].overview}</h2><p>{visualCopy[locale].read}</p><p>{visualCopy[locale].scale}</p></div><ProfileRadar axes={result.axes} label={visualCopy[locale].overview} locale={locale} /></section>}
         <section className="axis-results" id="axis-readings" aria-label="12 axes">
           {result.axes.map((axis, index) => {
             const localizedAxis = data?.axes.find((item) => item.id === axis.axisId);
             return <article className="axis-result" key={axis.axisId}>
-              <header><h2>{localizedAxis?.label ?? axis.label}</h2><span>{axis.intensity} · {axis.dominantPole}</span></header>
-              <div className="axis-labels"><b>{localizedAxis?.leftPole ?? axis.leftPole} {Math.round(axis.leftPercent)}%</b><b>{Math.round(axis.rightPercent)}% {localizedAxis?.rightPole ?? axis.rightPole}</b></div>
-              <div className="axis-bar"><span style={{ width: `${axis.leftPercent}%` }} /><i style={{ left: `${axis.leftPercent}%` }} /></div>
+              <header><h2><AxisGlyph index={index} size={24} />{localizedAxis?.label ?? axis.label}</h2><span>{axis.intensity} · {axis.dominantPole}</span></header>
+              <AxisBar index={index} leftLabel={localizedAxis?.leftPole ?? axis.leftPole} rightLabel={localizedAxis?.rightPole ?? axis.rightPole} value={axis.leftPercent} />
               {questions.length > 0 && <small>{deepText.neutral}: {questions.filter(q => q.axisId === axis.axisId && data?.answerOptions.find(a => a.id === answers[q.id])?.scoreTowardAgreement === 0.5).length} / {questions.filter(q => q.axisId === axis.axisId).length}</small>}
-              {paid && <p className="axis-interpretation">{axisReading(locale, index, axis.leftPercent, localizedAxis?.leftPole ?? axis.leftPole, localizedAxis?.rightPole ?? axis.rightPole)}</p>}
+              {paid && <details className="axis-reading-detail"><summary>{visualCopy[locale].detail}</summary><p className="axis-interpretation">{axisReading(locale, index, axis.leftPercent, localizedAxis?.leftPole ?? axis.leftPole, localizedAxis?.rightPole ?? axis.rightPole)}</p></details>}
             </article>;
           })}
         </section>
@@ -893,14 +878,14 @@ export function TestApp({ locale: initialLocale }: { locale: Locale }) {
           <div className="match-grid">{result.matches.slice(1, paid ? 10 : 4).map((match) => <ResultMatch match={match} locale={locale} key={match.ideologyId} />)}</div>
         </section>
         <section className="entity-card">
-          <div className="entity-image">◎</div>
+          <div className="entity-visual"><ConceptMark kind="globe" size={64} /></div>
           <div><span className="eyebrow">{text.country}</span><h2>{result.topCountryMatch.name}</h2><p className="entity-tags">{result.topCountryMatch.category} {result.topCountryMatch.period}</p><p>{result.topCountryMatch.description}</p></div>
-          <strong>{Math.round(result.topCountryMatch.compatibility)}% {auxiliaryUi[locale].match}</strong>
+          <MatchGauge value={result.topCountryMatch.compatibility} label={auxiliaryUi[locale].match} />
         </section>
         <section className="entity-card">
-          <div className="entity-image green">{initials(result.topPersonalityMatch.name)}</div>
+          <div className="entity-visual person"><ConceptMark kind="person" size={64} /></div>
           <div><span className="eyebrow">{text.personality}</span><h2>{result.topPersonalityMatch.name}</h2><p className="entity-tags">{result.topPersonalityMatch.role} {result.topPersonalityMatch.lifespan}</p><p>{result.topPersonalityMatch.description}</p></div>
-          <strong>{Math.round(result.topPersonalityMatch.compatibility)}% {auxiliaryUi[locale].match}</strong>
+          <MatchGauge value={result.topPersonalityMatch.compatibility} label={auxiliaryUi[locale].match} />
         </section>
         {paid && deep && reportToken && <div id="answer-evidence"><DeepReport data={deep} token={reportToken} locale={locale} /></div>}
         {paid && plus && reportToken && <div id="report-comparisons"><PlusReport data={plus} token={reportToken} locale={locale} original={originalView} /></div>}
@@ -931,44 +916,44 @@ export function TestApp({ locale: initialLocale }: { locale: Locale }) {
           </div>
           <div className="trust-row">{text.labels.map((label) => <span key={label}>✓ {label}</span>)}</div>
         </div>
-        <ExampleCard locale={locale} />
+        <HomeProfilePreview locale={locale} compact />
       </section>
       <section className="section-block">
         <span className="eyebrow">{text.discoverEyebrow}</span>
         <h2>{text.discoverTitle}</h2>
         <p className="section-lead">{text.discoverLead}</p>
-        <div className="discovery-grid">{text.discovery.map(([title, description], index) => <article key={title}><span>{["◎", "◇", "☆", "↔", "◫", "%"][index]}</span><h3>{title}</h3><p>{description}</p></article>)}</div>
+        <div className="discovery-grid">{text.discovery.map(([title, description], index) => <article key={title}><span className="discovery-symbol"><ConceptMark kind={(["profile", "globe", "person", "compare", "report", "share"] as const)[index]} /></span><h3>{title}</h3><p>{description}</p></article>)}</div>
       </section>
       <section className="section-block example-section">
-        <span className="eyebrow">{exampleUi[locale].real}</span><h2>{exampleUi[locale].title}</h2>
-        <ResultPreview locale={locale} />
+        <div className="visual-section-heading"><div><span className="eyebrow">{visualCopy[locale].sampleLabel}</span><h2>{visualCopy[locale].sample}</h2><p>{visualCopy[locale].scale}</p></div><ConceptMark kind="profile" size={64} /></div>
+        <HomeProfilePreview locale={locale} />
         <button className="primary-button centered" onClick={() => setMode("format")}>{text.start} →</button>
       </section>
       <section className="section-block" id="how">
         <span className="eyebrow">{auxiliaryUi[locale].how}</span><h2>{text.howTitle}</h2><p className="section-lead">{text.howLead}</p>
-        <div className="how-grid">{text.how.map(([title, description], index) => <article key={title}><b>{index + 1}</b><h3>{title}</h3><p>{description}</p></article>)}</div>
+        <div className="how-grid">{text.how.map(([title, description], index) => <article key={title}><div className="how-illustration"><ConceptMark kind={(["report", "profile", "compare", "share"] as const)[index % 4]} size={48} /><b>{String(index + 1).padStart(2, "0")}</b></div><h3>{title}</h3><p>{description}</p></article>)}</div>
       </section>
       <section className="section-block" id="axes">
         <span className="eyebrow">{auxiliaryUi[locale].axes}</span><h2>{text.axesTitle}</h2>
-        <div className="axes-grid">{axisExplanations[locale].map((axis, index) => <article key={axis}><small>{String(index + 1).padStart(2, "0")}</small><h3>{axis}</h3></article>)}</div>
+        <p className="section-lead">{visualCopy[locale].scale}</p><AxisGuide locale={locale} />
       </section>
       <section className="spectrum-section" id="spectrum">
         <div className="section-block"><span className="eyebrow">{auxiliaryUi[locale].spectrum}</span><h2>{text.spectrumTitle}</h2><p className="section-lead">{text.spectrumLead}</p>
-          <div className="spectrum-grid">{text.spectrum.map((item, index) => <article key={item} style={{ "--spectrum": `${index * 42}deg` } as React.CSSProperties}><span /><h3>{item}</h3></article>)}</div>
+          <div className="spectrum-grid">{text.spectrum.map((item, index) => <article key={item} style={{ "--spectrum": `${index * 42}deg` } as React.CSSProperties}><span className="spectrum-symbol"><AxisGlyph index={index} size={36} /></span><h3>{item}</h3></article>)}</div>
         </div>
       </section>
-      <section className="section-block"><h2>{deepText.directory}</h2><p>{deepText.libraryHelp}</p><a href={localePath(locale, "/library")}>{deepText.catalog} →</a></section>
+      <section className="section-block visual-library-callout"><div className="library-orbit" aria-hidden="true"><ConceptMark kind="globe" size={78} /><span><ConceptMark kind="person" size={28} /></span><span><ConceptMark kind="profile" size={28} /></span></div><div><span className="eyebrow">12AXES · {deepText.directory}</span><h2>{deepText.directory}</h2><p>{deepText.libraryHelp}</p><a className="secondary-button" href={localePath(locale, "/library")}>{deepText.catalog} →</a></div></section>
       <section className="section-block" id="faq">
         <span className="eyebrow">FAQ</span><h2>{text.faqTitle}</h2>
         <div className="faq-list">{text.faq.map(([question, answer]) => <details key={question}><summary>{question}<span>＋</span></summary><p>{answer}</p></details>)}</div>
       </section>
       <section className="section-block versions-section">
         <span className="eyebrow">{auxiliaryUi[locale].versions}</span><h2>{text.versions}</h2><p className="section-lead">{text.versionsLead}</p>
-        <div className="format-grid">{text.formats.map(([id, label, count, description, duration]) => <button className={`format-card ${id === "extended" ? "featured" : ""}`} key={id} onClick={() => chooseVariant(id as Variant)}><strong>{label}</strong><b>{count}</b><span>{description}</span><small>{duration}</small><i>{text.startVersion} →</i></button>)}</div>
+        <div className="format-grid">{text.formats.map(([id, label, count, description, duration], index) => <button className={`format-card ${id === "extended" ? "featured" : ""}`} key={id} onClick={() => chooseVariant(id as Variant)}><FormatIllustration level={index} /><strong>{label}</strong><b>{count}</b><span>{description}</span><small>{duration}</small><i>{text.startVersion} →</i></button>)}</div>
       </section>
       <section className="support-section" id="support">
         <span className="eyebrow">{text.support}</span><h2>{text.supportTitle}</h2><p>{text.supportLead}</p>
-        <div className="privacy-pill">⌁ {auxiliaryUi[locale].privacy}</div>
+        <div className="privacy-pill"><ConceptMark kind="report" size={20} />{auxiliaryUi[locale].privacy}</div>
       </section>
       <Footer locale={locale} onLocale={switchLocale} />
       {reportToken && <ReportRecovery locale={locale} />}
@@ -993,32 +978,12 @@ function AppHeader({ locale, onLocale, compact = false, onHome, action, onAction
   );
 }
 
-function ExampleCard({ locale }: { locale: Locale }) {
-  const text = exampleUi[locale];
-  return (
-    <div className="hero-result">
-      <div className="hero-result-top"><span>{text.example}</span><small>{text.position}</small><div className="mini-ring"><b>88%</b><i>{text.match}</i></div><h2>Brazilian Integralism</h2><p>{text.description}</p></div>
-      <div className="teaser-grid"><article><div className="placeholder-image">◎</div><small>{text.country}</small><h3>Empire of Brazil</h3><p>{text.countryDescription}</p><b>62%</b></article><article><div className="placeholder-image green">PS</div><small>{text.personality}</small><h3>Plínio Salgado</h3><p>{text.personalityDescription}</p><b>97%</b></article></div>
-    </div>
-  );
-}
-
-function ResultPreview({ locale }: { locale: Locale }) {
-  const text = exampleUi[locale];
-  return (
-    <div className="result-preview">
-      <div className="preview-head"><div><span>{text.position}</span><h3>Brazilian Integralism</h3><p>{text.description}</p></div><div className="mini-ring large"><b>88%</b><i>{text.match}</i></div></div>
-      {previewAxes[locale].map(([title, left, leftValue, right, rightValue]) => <article className="axis-result" key={title}><header><h3>{title}</h3></header><div className="axis-labels"><b>{left} {leftValue}%</b><b>{rightValue}% {right}</b></div><div className="axis-bar"><span style={{ width: `${leftValue}%` }} /><i style={{ left: `${leftValue}%` }} /></div></article>)}
-    </div>
-  );
-}
-
 function ResultMatch({ match, locale, label, large = false }: { match: Match; locale: Locale; label?: string; large?: boolean }) {
   return (
     <article className={`match-card ${large ? "large" : ""}`}>
       {label && (large ? <h1 className="match-label">{label}</h1> : <span className="eyebrow">{label}</span>)}
-      <div className="match-title"><div><small>{match.category}</small><h2>{match.name}</h2></div><div className="mini-ring"><b>{Math.round(match.compatibility)}%</b><i>{auxiliaryUi[locale].match}</i></div></div>
-      {large ? <details className="match-description"><summary>{({ en: "About this match", pt: "Sobre este perfil", es: "Sobre este perfil", ru: "Об этом профиле", zh: "查看匹配说明" })[locale]}</summary><p>{match.description}</p></details> : <p>{match.description}</p>}
+      <div className="match-title"><div><small>{match.category}</small><h2>{match.name}</h2></div><MatchGauge value={match.compatibility} label={auxiliaryUi[locale].match} size={large ? 90 : 72} /></div>
+      {<details className="match-description"><summary>{({ en: "About this match", pt: "Sobre este perfil", es: "Sobre este perfil", ru: "Об этом профиле", zh: "查看匹配说明" })[locale]}</summary><p>{match.description}</p></details>}
     </article>
   );
 }

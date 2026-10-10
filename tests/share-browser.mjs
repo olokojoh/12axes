@@ -8,7 +8,15 @@ export async function verifySharing(page, base = "http://localhost:3000") {
   await page.goto(origin + "/results" + query);
   await page.waitForSelector(".social-share-panel");
   await page.evaluate(() => {
-    const state = window.__shareQA = { postCount: 0, uploads: [], native: [], copied: [], downloads: 0, failUpload: false, failCopy: false, nullBlob: false, fileSupport: true, nativeMode: "success", urls: [], revoked: [] };
+    const state = window.__shareQA = { postCount: 0, uploads: [], native: [], copied: [], downloads: 0, failUpload: false, failCopy: false, nullBlob: false, fileSupport: true, nativeMode: "success", urls: [], revoked: [], popups: [], popupBlocked: false, forceInactive: false, delayShare: 0, clipboardWrites: [] };
+    const originalActivation = navigator.userActivation;
+    Object.defineProperty(navigator, "userActivation", { configurable: true, get: () => state.forceInactive ? { isActive: false } : originalActivation });
+    window.open = () => {
+      if (state.popupBlocked) return null;
+      const popup = { opener: window, closed: false, document: document.implementation.createHTMLDocument(""), location: { replace: url => { state.popups.at(-1).url = url; state.popups.at(-1).uploadsAtNavigation = state.uploads.length; } }, close() { this.closed = true; } };
+      state.popups.push({ activated: navigator.userActivation.isActive, popup });
+      return popup;
+    };
     const originalFetch = window.fetch;
     window.fetch = async (...args) => {
       const url = new URL(args[0] instanceof Request ? args[0].url : String(args[0]), location.href);
@@ -16,6 +24,7 @@ export async function verifySharing(page, base = "http://localhost:3000") {
       if (url.pathname !== "/api/share") return originalFetch(...args);
       if (options.method === "POST") {
         state.postCount++;
+        if (state.delayShare) await new Promise(resolve => setTimeout(resolve, state.delayShare));
         const input = JSON.parse(options.body); state.lastInput = input;
         const id = "synthetic-" + state.postCount;
         return new Response(JSON.stringify({ id, uploadToken: "synthetic-upload", url: `https://12axes.test/${input.locale}/share/${id}`, imageUrl: `https://12axes.test/api/share/${id}/image`, ready: false }), { headers: { "content-type": "application/json" } });
@@ -27,7 +36,14 @@ export async function verifySharing(page, base = "http://localhost:3000") {
       }
       throw new Error("Unexpected share API operation");
     };
-    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: async value => { if (state.failCopy) throw new Error("Clipboard unavailable"); state.copied.push(value); } } });
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: {
+      writeText: async value => { if (state.failCopy) throw new Error("Clipboard unavailable"); state.copied.push(value); },
+      write: async items => {
+        state.clipboardWrites.push({ activated: navigator.userActivation.isActive, uploadsAtCall: state.uploads.length });
+        if (state.failCopy) throw new Error("Clipboard unavailable");
+        state.copied.push(await (await items[0].getType("text/plain")).text());
+      },
+    } });
     state.shareFunction = async value => {
       state.native.push({ fileCount: value.files?.length ?? 0, fileType: value.files?.[0]?.type, size: value.files?.[0]?.size, fileName: value.files?.[0]?.name, title: value.title, text: value.text, url: value.url, activated: navigator.userActivation.isActive });
       if (state.nativeMode === "cancel") throw new DOMException("User canceled", "AbortError");
@@ -42,107 +58,139 @@ export async function verifySharing(page, base = "http://localhost:3000") {
     URL.revokeObjectURL = url => { state.revoked.push(url); return revoke(url); };
     document.addEventListener("click", event => { if (event.target.closest?.("a[download]")) state.downloads++; }, true);
   });
-  const state = () => page.evaluate(() => ({ ...window.__shareQA, shareFunction: undefined }));
+  const state = () => page.evaluate(() => ({ ...window.__shareQA, shareFunction: undefined, popups: window.__shareQA.popups.map(({ popup, ...rest }) => ({ ...rest, closed: popup.closed, openerNull: popup.opener === null })) }));
   async function waitStatus(value) { await page.waitForFunction(expected => document.querySelector(".share-status")?.textContent === expected, value); }
-  async function prepare() {
-    await page.press(".share-panel-content > button", "Enter");
-    await page.waitForFunction(() => !document.querySelector(".share-panel-content > button:disabled") && !!document.querySelector(".share-link-label input"));
-  }
   async function set(options) { await page.evaluate(options => Object.assign(window.__shareQA, options), options); }
+  async function waitReady() { await page.waitForFunction(() => !!document.querySelector(".share-link-label input") && !document.querySelector(".share-main-actions button:disabled")); }
 
-  await page.press(".social-share-panel > summary", "Enter");
-  assert.equal(await page.evaluate(() => document.querySelector(".social-share-panel .result-consent input").checked), false);
-  assert.equal(await page.evaluate(() => document.querySelector(".share-panel-content > button").disabled), true);
-  await page.press(".social-share-panel .result-consent input", "Space");
-  await prepare();
-  await waitStatus("Your link and images are ready.");
+  assert.equal(await page.evaluate(() => document.querySelectorAll(".social-share-panel input[type=checkbox],.social-share-panel summary").length), 0);
+  assert.equal(await page.evaluate(() => document.querySelectorAll(".share-platforms button").length), 5);
+  assert.equal((await state()).postCount, 0, "Showing the result must not publish it");
+  await page.hover(".share-platforms .social-x");
+  assert.equal((await state()).postCount, 0, "Hover must not publish a result");
+  await page.press(".share-platforms .social-x", "Enter"); await waitReady();
+  await waitStatus("The platform sharing screen is open. You choose whether to publish.");
   const first = await state();
   assert.equal(first.postCount, 1); assert.equal(first.uploads.length, 1);
   assert.deepEqual([first.uploads[0].width, first.uploads[0].height, first.uploads[0].type], [1200, 630, "image/png"]);
   assert.ok(first.uploads[0].size > 10000 && first.uploads[0].size < 1024 * 1024);
   assert.equal(first.lastInput.consent, true); assert.equal(first.lastInput.axes.length, 12);
-  assert.equal(first.urls.length, 2);
-  assert.equal(await page.evaluate(() => document.querySelector(".social-share-panel .result-consent input").disabled), true, "Published consent must not imply that unchecking removes a public link");
-  assert.equal(await page.evaluate(() => document.querySelector(".share-public-notice a").getAttribute("href")), "/contact");
+  assert.equal(first.popups[0].activated, true); assert.equal(first.popups[0].openerNull, true);
+  assert.equal(first.popups[0].uploadsAtNavigation, 1, "Platform navigation waits for uploaded OG image");
+  assert.equal(new URL(first.popups[0].url).searchParams.get("url"), "https://12axes.test/en/share/synthetic-1");
 
-  await page.press(".share-main-actions .secondary-button", "Enter"); await waitStatus("Text and link copied.");
+  for (const platform of ["facebook", "whatsapp", "telegram", "reddit"]) await page.press(".share-platforms .social-" + platform, "Enter");
+  assert.equal((await state()).postCount, 1, "Warm platform actions reuse the public result");
+  const opened = (await state()).popups;
+  assert.equal(opened.length, 5);
+  assert.equal(new URL(opened[1].url).searchParams.get("u"), "https://12axes.test/en/share/synthetic-1");
+  assert.ok(new URL(opened[2].url).searchParams.get("text").endsWith("https://12axes.test/en/share/synthetic-1"));
+  assert.equal(new URL(opened[3].url).searchParams.get("url"), "https://12axes.test/en/share/synthetic-1");
+  assert.equal(new URL(opened[4].url).searchParams.get("url"), "https://12axes.test/en/share/synthetic-1");
+  await set({ popupBlocked: true }); await page.press(".share-platforms .social-x", "Enter");
+  await waitStatus("Your link is ready. Allow pop-ups or open the platform using the link below.");
+  assert.equal(await page.evaluate(() => document.querySelector(".share-popup-fallback").rel), "noopener noreferrer");
+  await set({ popupBlocked: false, forceInactive: false, delayShare: 0, clipboardWrites: [] });
+
+  await page.press(".share-main-actions .share-secondary", "Enter"); await waitStatus("Text and link copied.");
   assert.match((await state()).copied[0], /Traditionalism.*https:\/\/12axes\.test\/en\/share\/synthetic-1/);
-  await set({ failCopy: true }); await page.press(".share-main-actions .secondary-button", "Enter"); await waitStatus("Please manually copy the link below.");
+  await set({ failCopy: true }); await page.press(".share-main-actions .share-secondary", "Enter"); await waitStatus("Please manually copy the link below.");
   assert.equal(await page.evaluate(() => document.activeElement === document.querySelector(".share-link-label input") && document.activeElement.selectionEnd === document.activeElement.value.length), true);
   await set({ failCopy: false });
 
   for (const image of [false, true]) {
-    const selector = image ? ".share-main-actions .primary-button" : ".share-extra-actions button:first-child";
+    const selector = image ? ".share-main-actions .share-primary" : ".share-extra-actions button:first-child";
     await set({ nativeMode: "success" }); await page.press(selector, "Enter");
     await waitStatus("System sharing finished. The receiving app controls whether it is posted.");
     const call = (await state()).native.at(-1);
-    assert.equal(call.activated, true, "Native share needs the original user activation");
-    assert.equal(call.fileCount, image ? 1 : 0);
+    assert.equal(call.activated, true); assert.equal(call.fileCount, image ? 1 : 0);
     if (image) { assert.equal(call.fileType, "image/png"); assert.ok(call.size > 10000); }
-    else assert.match(call.url, /^https:\/\/12axes\.test\/en\/share\//);
     await set({ nativeMode: "cancel" }); await page.press(selector, "Enter"); await waitStatus("Sharing canceled.");
     assert.equal((await state()).downloads, 0, "Cancel must not trigger a download");
     await set({ nativeMode: "error" }); await page.press(selector, "Enter");
     await waitStatus("Sharing failed. Use the copy, open image or download options below.");
-    assert.equal((await state()).downloads, 0);
   }
-  await set({ fileSupport: false });
-  const calls = (await state()).native.length;
-  await page.press(".share-main-actions .primary-button", "Enter");
+  await set({ fileSupport: false }); const calls = (await state()).native.length;
+  await page.press(".share-main-actions .share-primary", "Enter");
   await waitStatus("This browser cannot share image files. Preview, save or download the image below.");
-  await page.waitForSelector(".share-image-preview img");
   await page.waitForFunction(() => document.querySelector(".share-image-preview img")?.naturalWidth === 1080);
   assert.equal((await state()).native.length, calls); assert.equal((await state()).downloads, 0);
-  assert.deepEqual(await page.evaluate(() => { const img = document.querySelector(".share-image-preview img"); return [img.naturalWidth, img.naturalHeight]; }), [1080, 1920]);
+  assert.equal(await page.evaluate(() => document.querySelector(".share-image-preview img").naturalHeight), 1920);
   await page.press(".share-image-formats button:last-child", "Enter");
   await page.waitForFunction(() => document.querySelector(".share-image-preview img")?.naturalWidth === 1200);
   assert.equal(await page.evaluate(() => document.querySelector(".share-image-preview img").naturalHeight), 630);
-  await page.evaluate(() => Object.defineProperty(navigator, "share", { configurable: true, value: undefined }));
-  await page.press(".share-extra-actions button:first-child", "Enter");
-  await waitStatus("System sharing is unavailable here. Use a platform button or copy the link.");
-  await page.evaluate(() => Object.defineProperty(navigator, "share", { configurable: true, value: window.__shareQA.shareFunction }));
-
-  const links = await page.evaluate(() => [...document.querySelectorAll(".share-platforms a")].map(a => ({ name: a.textContent, url: a.href, rel: a.rel, target: a.target })));
-  assert.equal(links.length, 5);
-  for (const link of links) { assert.equal(new URL(link.url).protocol, "https:"); assert.equal(link.target, "_blank"); assert.match(link.rel, /noopener/); assert.match(link.rel, /noreferrer/); }
-  assert.equal(new URL(links.find(link => link.name === "Telegram").url).searchParams.get("url"), "https://12axes.test/en/share/synthetic-1");
 
   for (const locale of ["pt", "es", "ru", "zh"]) {
+    const before = (await state()).postCount;
     await page.selectOption('select[aria-label="Language"]', locale);
-    await page.waitForFunction(locale => document.documentElement.lang.startsWith(locale) && document.querySelector(".share-panel-content > button") && !document.querySelector(".share-link-label input"), locale);
-    assert.equal(await page.evaluate(() => document.querySelector(".social-share-panel").open), true);
-    assert.equal(await page.evaluate(() => document.querySelector(".social-share-panel .result-consent input").checked), true);
-    assert.equal(await page.evaluate(() => document.querySelector(".social-share-panel .result-consent input").disabled), true, "Published status survives language changes");
-    assert.equal(await page.evaluate(() => document.querySelector(".share-public-notice a").getAttribute("href")), `/${locale}/contact`);
-    await prepare();
-    const current = await state();
-    assert.equal(current.lastInput.locale, locale);
-    assert.equal(current.uploads.at(-1).width, 1200);
-    assert.equal(current.uploads.at(-1).height, 630);
+    await page.waitForFunction(locale => document.documentElement.lang.startsWith(locale) && !document.querySelector(".share-link-label input"), locale);
+    assert.equal((await state()).postCount, before, "Language changes must not publish a result");
+    assert.equal(await page.evaluate(() => document.querySelectorAll(".share-platforms button:not(:disabled)").length), 5);
+    await page.press(".share-platforms .social-x", "Enter"); await waitReady();
+    const current = await state(); assert.equal(current.lastInput.locale, locale);
+    assert.equal(current.uploads.at(-1).width, 1200); assert.equal(current.uploads.at(-1).height, 630);
     assert.equal(await page.evaluate(() => document.querySelector(".share-link-label input").value), `https://12axes.test/${locale}/share/synthetic-${current.postCount}`);
   }
-  assert.equal((await state()).revoked.length, 8, "Language changes release both cached images");
+  assert.equal((await state()).revoked.length, 8);
 
   await page.selectOption('select[aria-label="Language"]', "en");
-  await page.waitForFunction(() => document.querySelector(".share-panel-content > button")?.textContent === "Create share link and images");
-  await set({ failUpload: true }); await prepare();
-  await waitStatus("Your link works, but its image preview is not ready. You can copy the link or retry preparing images.");
-  assert.equal(await page.evaluate(() => document.querySelectorAll(".share-platforms a").length), 5);
-  assert.equal(await page.evaluate(() => document.querySelector(".share-panel-content > button").textContent), "Retry preparing images");
-  const failed = await state();
-  await set({ failUpload: false }); await prepare(); await waitStatus("Your link and images are ready.");
-  assert.equal((await state()).postCount, failed.postCount, "Upload retry reuses the existing public link");
-  assert.equal((await state()).urls.length, failed.urls.length, "Upload retry reuses cached images");
+  await page.waitForFunction(() => document.querySelector(".share-heading h2")?.textContent === "Share result" && !document.querySelector(".share-link-label input"));
+  await set({ nativeMode: "success", fileSupport: true, forceInactive: true });
+  const beforeNative = (await state()).native.length;
+  await page.press(".share-main-actions .share-primary", "Enter");
+  await waitStatus("Ready. Tap the system sharing button again to open your device’s share sheet.");
+  assert.equal((await state()).native.length, beforeNative, "Cold native sharing must explicitly request a fresh click");
+  await set({ forceInactive: false, delayShare: 0, clipboardWrites: [] });
+  await page.press(".share-main-actions .share-primary", "Enter");
+  await waitStatus("System sharing finished. The receiving app controls whether it is posted.");
+  assert.equal((await state()).native.at(-1).activated, true);
 
   await page.selectOption('select[aria-label="Language"]', "zh");
-  await page.waitForFunction(() => document.querySelector(".share-panel-content > button")?.textContent === "生成分享链接和图片");
-  await set({ nullBlob: true }); await prepare();
+  await page.waitForFunction(() => document.querySelector(".share-heading h2")?.textContent === "分享结果" && !document.querySelector(".share-link-label input"));
+  await set({ failUpload: true }); await page.press(".share-platforms .social-x", "Enter"); await waitReady();
   await waitStatus("链接可以访问，但图片预览尚未准备好。你可以先复制链接，或重新准备图片。");
-  assert.equal(await page.evaluate(() => document.querySelector(".share-panel-content > button").disabled), false);
-  assert.equal(await page.evaluate(() => document.querySelector(".share-main-actions .primary-button").disabled), true);
-  assert.equal(await page.evaluate(() => document.querySelectorAll(".share-platforms a").length), 5);
-  await set({ nullBlob: false }); await prepare(); await waitStatus("分享链接和图片已准备好。");
-  assert.equal((await state()).downloads, 0, "No fallback silently downloaded any files");
-  console.log("Sharing browser checks passed: 5 languages, 2 real PNG dimensions, consent, copy success/failure, 6 native outcomes, unsupported link/file, 5 platform links, language state/cache cleanup, upload retry and null-Blob recovery. No platform posts or real share records.");
-  return { languages: 5, nativeOutcomes: 6, platformLinks: 5, pngDimensions: [[1200, 630], [1080, 1920]], ...await page.evaluate(() => ({ publicMocks: window.__shareQA.postCount, imageUploads: window.__shareQA.uploads.length, nativeCalls: window.__shareQA.native.length, automaticDownloads: window.__shareQA.downloads })) };
+  assert.equal((await state()).popups.at(-1).closed, true, "Failed preparation closes the temporary popup");
+  const failed = await state(); await set({ failUpload: false }); await page.press(".share-retry", "Enter");
+  await waitStatus("分享链接和图片已准备好。");
+  assert.equal((await state()).postCount, failed.postCount); assert.equal((await state()).urls.length, failed.urls.length);
+
+  await page.selectOption('select[aria-label="Language"]', "pt");
+  await page.waitForFunction(() => document.querySelector(".share-heading h2")?.textContent === "Compartilhar resultado" && !document.querySelector(".share-link-label input"));
+  await set({ nullBlob: true }); await page.press(".share-platforms .social-x", "Enter"); await waitReady();
+  assert.equal(await page.evaluate(() => !!document.querySelector(".share-retry")), true);
+  assert.equal(await page.evaluate(() => !!document.querySelector(".share-main-actions button:disabled")), false);
+  await set({ nullBlob: false }); await page.press(".share-retry", "Enter"); await waitStatus("Seu link e suas imagens estão prontos.");
+  assert.equal((await state()).downloads, 0);
+  await page.selectOption('select[aria-label="Language"]', "en");
+  await page.waitForFunction(() => document.querySelector(".share-heading h2")?.textContent === "Share result" && !document.querySelector(".share-link-label input"));
+  const activeColdBefore = (await state()).native.length;
+  await page.press(".share-main-actions .share-primary", "Enter");
+  await waitStatus("System sharing finished. The receiving app controls whether it is posted.");
+  assert.equal((await state()).native.length, activeColdBefore + 1, "Cold sharing continues in one click while activation is retained");
+  assert.equal((await state()).native.at(-1).activated, true);
+  await page.selectOption('select[aria-label="Language"]', "pt");
+  await page.waitForFunction(() => document.querySelector(".share-heading h2")?.textContent === "Compartilhar resultado" && !document.querySelector(".share-link-label input"));
+  const unsupportedBefore = (await state()).postCount;
+  await page.evaluate(() => Object.defineProperty(navigator, "share", { configurable: true, value: undefined }));
+  await page.press(".share-extra-actions button:first-child", "Enter");
+  await waitStatus("O compartilhamento pelo sistema não está disponível. Use um botão de plataforma ou copie o link.");
+  assert.equal((await state()).postCount, unsupportedBefore, "Unavailable native link sharing must not publish a result");
+  await page.evaluate(() => Object.defineProperty(navigator, "share", { configurable: true, value: window.__shareQA.shareFunction }));
+  const delayedBefore = (await state()).uploads.length;
+  await set({ delayShare: 150 });
+  await page.press(".share-main-actions .share-secondary", "Enter");
+  await waitStatus("Texto e link copiados.");
+  const delayedWrite = (await state()).clipboardWrites.at(-1);
+  assert.equal(delayedWrite.activated, true, "Cold ClipboardItem write starts under the original click");
+  assert.equal(delayedWrite.uploadsAtCall, delayedBefore, "Clipboard permission is requested before image preparation finishes");
+  assert.match((await state()).copied.at(-1), /https:\/\/12axes\.test\/pt\/share\//);
+  await page.selectOption('select[aria-label="Language"]', "en");
+  await page.waitForFunction(() => document.querySelector(".share-heading h2")?.textContent === "Share result" && !document.querySelector(".share-link-label input"));
+  await set({ failCopy: true }); await page.press(".share-main-actions .share-secondary", "Enter");
+  await waitStatus("Please manually copy the link below.");
+  assert.equal((await state()).clipboardWrites.at(-1).activated, true);
+  assert.equal(await page.evaluate(() => document.activeElement === document.querySelector(".share-link-label input") && document.activeElement.selectionEnd === document.activeElement.value.length), true);
+  await set({ failCopy: false, delayShare: 0 });
+  console.log("One-click sharing passed: all 5 visible platforms, deferred publication, safe synchronous popup, uploaded preview before platform navigation, 5 languages, copy fallback, 8 native outcomes including retained/lost cold activation, real PNG dimensions, upload/null-Blob retry, delayed ClipboardItem success/failure and unsupported native nonpublication. No external platform navigation.");
+  return { languages: 5, platforms: 5, ...await page.evaluate(() => ({ publicMocks: window.__shareQA.postCount, imageUploads: window.__shareQA.uploads.length, nativeCalls: window.__shareQA.native.length, automaticDownloads: window.__shareQA.downloads })) };
 }

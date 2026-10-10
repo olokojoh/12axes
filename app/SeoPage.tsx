@@ -1,5 +1,9 @@
 import { CommercePage, commerceMeta, commerceSlugs, commerceLabels, type CommerceSlug } from "./CommercePage";
 import type { Metadata } from "next";
+import { deepCopy } from "./deep-copy";
+import { AxisGlyph } from "./ResultVisuals";
+import catalog from "./data/matching.json";
+import "./content-visuals.css";
 import { axisExplanations, contactLabels, copy, htmlLang, localeNames, localePath, locales, publicContactUrl, type Locale } from "./i18n";
 
 const contentSlugs = ["vercel-app", "results", "ideologies", "12axes-vs-9axes", "12axes-vs-8values", "license"] as const;
@@ -158,16 +162,16 @@ export function SeoPage({ locale, slug }: { locale: Locale; slug: SeoSlug }) {
   const page = commerceSlugs.includes(slug as CommerceSlug) ? commerceMeta(locale, slug as CommerceSlug) : pageCopy[locale][slug as ContentSlug];
   const ui = seoUi[locale];
   return (
-    <main className="seo-shell">
+    <main className="seo-shell content-shell">
       <header className="site-header">
         <a className="logo" href={localePath(locale)}><b>12</b><span>axes</span></a>
         <nav><a href={localePath(locale)}>{copy[locale].start}</a><a href={localePath(locale, "/results")}>{ui.nav[0]}</a><a href={localePath(locale, "/ideologies")}>{ui.nav[1]}</a></nav>
         <div className="language-links">{locales.map((item) => <a className={item === locale ? "active" : ""} href={localePath(item, `/${slug}`)} key={item}>{item.toUpperCase()}</a>)}</div>
       </header>
-      <article className="seo-article">
-        <span className="eyebrow">12 Axes Test</span>
+      <article className={`seo-article content-article ${slug === "license" ? "legal-article" : ""}`}>
+        <header className="content-hero"><span className="eyebrow">12 Axes Test</span>
         <h1>{page.h1}</h1>
-        <p className="seo-lead">{page.lead}</p>
+        <p className="seo-lead">{page.lead}</p></header>
         {slug === "vercel-app" && <VercelBody locale={locale} />}
         {slug === "results" && <ResultsBody locale={locale} />}
         {slug === "ideologies" && <IdeologiesBody locale={locale} />}
@@ -190,27 +194,26 @@ export function SeoPage({ locale, slug }: { locale: Locale; slug: SeoSlug }) {
 
 function VercelBody({ locale }: { locale: Locale }) {
   const text = bodyCopy[locale];
-  return <><section><h2>{text.happened}</h2><p>{text.happenedText}</p></section><section><h2>{text.works}</h2><ul>{seoUi[locale].working.map((item) => <li key={item}>{item}</li>)}<li>{localeNames[locale]} · English · Português · Español · Русский · 中文</li></ul></section><section><h2>{text.expect}</h2><p>{text.expectText}</p></section><section><h2>{text.independent}</h2><p>{text.independentText}</p></section></>;
+  return <><section><h2>{text.happened}</h2><p>{text.happenedText}</p></section><section><h2>{text.works}</h2><div className="content-feature-grid">{seoUi[locale].working.map((item, index) => <article key={item}><span className="content-icon"><AxisGlyph index={[1, 6, 5, 3][index]} size={28} /></span><h3>{item}</h3></article>)}</div><p className="content-language-list">{localeNames[locale]} · English · Português · Español · Русский · 中文</p></section><section className="content-reading-callout"><AxisGlyph index={1} size={40} /><div><h2>{text.expect}</h2><p>{text.expectText}</p></div></section><section><h2>{text.independent}</h2><p>{text.independentText}</p></section></>;
 }
 
 function ResultsBody({ locale }: { locale: Locale }) {
   const text = bodyCopy[locale];
-  return <><section><h2>{text.dimensions}</h2><div className="ideology-list">{axisExplanations[locale].map((axis, index) => <article key={axis}><h3>{String(index + 1).padStart(2, "0")} · {axis}</h3><p>{text.axisGuideItems[index]}</p></article>)}</div></section><section><h2>{text.calculate}</h2><p>{text.calculateText}</p></section><section><h2>{text.balance}</h2><p>{text.balanceText}</p></section><section><h2>{text.match}</h2><p>{text.matchText}</p></section><section><h2>{text.misread}</h2><ul>{text.misreadItems.map((item) => <li key={item}>{item}</li>)}</ul></section></>;
+  return <><nav className="content-jump-nav">{[text.dimensions, text.calculate, text.balance, text.match].map((label, index) => <a key={label} href={"#guide-" + index}>{String(index + 1).padStart(2, "0")}<span>{label}</span></a>)}</nav><section id="guide-0"><h2>{text.dimensions}</h2><div className="axis-guide-grid">{axisExplanations[locale].map((axis, index) => <article key={axis}><header><span className="content-icon"><AxisGlyph index={index} size={26} /></span><span className="content-axis-number">{String(index + 1).padStart(2, "0")}</span></header><h3>{axis}</h3><div className="axis-guide-poles"><span>{catalog.axes[locale][index].leftPole}</span><span>{catalog.axes[locale][index].rightPole}</span></div><div className="axis-guide-spectrum" aria-hidden="true"><i /></div><p>{text.axisGuideItems[index]}</p></article>)}</div></section><div className="reading-guide-grid"><section id="guide-1"><span className="content-icon"><AxisGlyph index={7} size={28} /></span><h2>{text.calculate}</h2><div className="neutral-scale" aria-hidden="true"><span>0</span><strong>50 / 50</strong><span>100</span></div><p>{text.calculateText}</p></section><section id="guide-2"><span className="content-icon"><AxisGlyph index={0} size={28} /></span><h2>{text.balance}</h2><p>{text.balanceText}</p></section><section id="guide-3"><span className="content-icon"><AxisGlyph index={1} size={28} /></span><h2>{text.match}</h2><p>{text.matchText}</p></section></div><section className="content-reading-callout"><AxisGlyph index={11} size={40} /><div><h2>{text.misread}</h2><ul>{text.misreadItems.map((item) => <li key={item}>{item}</li>)}</ul></div></section></>;
 }
 
 function IdeologiesBody({ locale }: { locale: Locale }) {
   const text = bodyCopy[locale];
-  return <><section><h2>{text.families}</h2><div className="ideology-list">{ideologyFamilies[locale].map(([family, examples], index) => <article key={family}><h3>{family}</h3><p>{examples}</p><p>{text.familyNotes[index]}</p></article>)}</div></section><section><h2>{text.catalog}</h2><p>{text.catalogText}</p></section><section><h2>{text.label}</h2><p>{text.labelText}</p></section><section><h2>{copy[locale].versions}</h2><p>{copy[locale].versionsLead}</p></section></>;
+  return <><section><h2>{text.families}</h2><div className="family-grid">{ideologyFamilies[locale].map(([family, examples], index) => <article key={family}><header><span className="content-icon"><AxisGlyph index={[6, 0, 10, 2, 1, 5][index]} size={32} /></span><span className="content-axis-number">{String(index + 1).padStart(2, "0")}</span></header><h3>{family}</h3><div className="family-examples">{examples.split(" · ").map(example => <span key={example}>{example}</span>)}</div><p>{text.familyNotes[index]}</p></article>)}</div></section><section className="catalog-explanation"><div><h2>{text.catalog}</h2><p>{text.catalogText}</p></div><div className="catalog-totals">{[catalog.ideologies.length, catalog.countries.length, catalog.personalities.length].map((count, index) => <span key={index}><AxisGlyph index={[1, 5, 10][index]} size={24} /><strong>{count}</strong><small>{deepCopy[locale].groups[index]}</small></span>)}</div></section><section className="content-reading-callout"><AxisGlyph index={3} size={40} /><div><h2>{text.label}</h2><p>{text.labelText}</p></div></section><section><h2>{copy[locale].versions}</h2><p>{copy[locale].versionsLead}</p></section></>;
 }
 
 function ComparisonBody({ competitor, locale }: { locale: Locale; competitor: string }) {
-  return <ComparisonLocalized competitor={competitor} locale={locale} />;
-}
-
-function ComparisonLocalized({ competitor, locale = "en" }: { competitor: string; locale?: Locale }) {
   const text = bodyCopy[locale];
   const [feature, dimensions, questions, singleTest, matches, matchTypes, axisProfile] = seoUi[locale].comparison;
-  return <><section><h2>{text.glance}</h2><div className="comparison-table"><div><b>{feature}</b><b>12Axes</b><b>{competitor}</b></div><div><span>{dimensions}</span><span>12</span><span>{competitor === "9Axes" ? "9" : "8"}</span></div><div><span>{questions}</span><span>36 / 60 / 240</span><span>{singleTest}</span></div><div><span>{matches}</span><span>{matchTypes}</span><span>{axisProfile}</span></div></div></section><section><h2>{text.choose}</h2><p>{text.chooseText}</p></section><section><h2>{text.chooseOther}</h2><p>{text.chooseOtherText}</p></section><section><h2>{text.sharedRoots}</h2><p>{text.sharedRootsText}</p></section><section><h2>{text.limits}</h2><p>{text.limitsText}</p></section></>;
+  const otherCount = competitor === "9Axes" ? 9 : 4;
+  const valueLabels = { en: "4 axes / 8 values", pt: "4 eixos / 8 valores", es: "4 ejes / 8 valores", ru: "4 оси / 8 ценностей", zh: "4 轴 / 8 价值" };
+  const otherUnits = competitor === "9Axes" ? "9" : valueLabels[locale];
+  return <><section><h2>{text.glance}</h2><div className="dimension-comparison" aria-hidden="true"><div><strong>12Axes</strong><span>{Array.from({ length: 12 }, (_, index) => <i key={index} />)}</span><b>12</b></div><div><strong>{competitor}</strong><span>{Array.from({ length: otherCount }, (_, index) => <i key={index} />)}</span><b>{otherCount}</b></div></div><div className="content-comparison-scroll"><table className="content-comparison-table"><thead><tr><th>{feature}</th><th>12Axes</th><th>{competitor}</th></tr></thead><tbody><tr><th>{dimensions}</th><td>12</td><td>{otherUnits}</td></tr><tr><th>{questions}</th><td>36 / 60 / 240</td><td>{singleTest}</td></tr><tr><th>{matches}</th><td>{matchTypes}</td><td>{axisProfile}</td></tr></tbody></table></div></section><div className="reading-guide-grid"><section><span className="content-icon"><AxisGlyph index={1} size={28} /></span><h2>{text.choose}</h2><p>{text.chooseText}</p></section><section><span className="content-icon"><AxisGlyph index={0} size={28} /></span><h2>{text.chooseOther}</h2><p>{text.chooseOtherText}</p></section></div><section><h2>{text.sharedRoots}</h2><p>{text.sharedRootsText}</p></section><section className="content-reading-callout"><AxisGlyph index={11} size={40} /><div><h2>{text.limits}</h2><p>{text.limitsText}</p></div></section></>;
 }
 
 function LicenseBody({ locale = "en" }: { locale?: Locale }) {

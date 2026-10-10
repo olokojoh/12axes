@@ -7,6 +7,7 @@ import { deepCopy } from "./deep-copy";
 import { plusCopy } from "./plus-copy";
 import { axisReading } from "./report-copy";
 import { resultSummaryCopy } from "./result-summary-copy";
+import { AxisBar, AxisGlyph, MatchGauge, ProfileRadar, visualCopy } from "./ResultVisuals";
 
 type SummaryResult = {
   topMatch: { name: string; compatibility: number; description: string };
@@ -48,21 +49,25 @@ export function ResultSummary({ locale, result, quizLength, paid, plan }: {
       <span className="result-summary-status">{text.unlocked}</span>
     </header>
     <h1 id="result-summary-title">{text.title}</h1>
-    <div className="result-summary-match">
-      <p>{text.match}</p>
-      <h2>{result.topMatch.name}</h2>
-      <p className="result-summary-similarity">{text.similarity.replace("{score}", String(Math.round(result.topMatch.compatibility)))}</p>
-      <p>{result.topMatch.description}</p>
+    <div className="summary-visual-overview">
+      <div className="result-summary-match">
+        <div className="summary-match-heading"><MatchGauge value={result.topMatch.compatibility} label={text.match} /><div><p>{text.match}</p><h2>{result.topMatch.name}</h2></div></div>
+        <p className="result-summary-similarity">{text.similarity.replace("{score}", String(Math.round(result.topMatch.compatibility)))}</p>
+        <p className="summary-match-description">{result.topMatch.description}</p>
+        <p className="result-summary-caveat">{text.caveat}</p>
+        {strongest.length === 0 && <p className="result-summary-neutral">{text.neutral}</p>}
+        <p className="result-summary-balanced">{text.balanced.replace("{count}", String(balanced)).replace("{total}", String(result.axes.length))}</p>
+      </div>
+      <ProfileRadar axes={result.axes} label={visualCopy[locale].overview} locale={locale} />
     </div>
     {strongest.length > 0 ? <>
       <h2>{text.strongest}</h2>
       <div className="result-summary-axes">{strongest.map(({ axis, index }) => <article key={axis.axisId}>
-        <h3>{axis.label} · {axis.leftPercent >= 50 ? axis.leftPole : axis.rightPole} {Math.round(Math.max(axis.leftPercent, axis.rightPercent))}%</h3>
-        <p>{axisReading(locale, index, axis.leftPercent, axis.leftPole, axis.rightPole)}</p>
+        <h3><AxisGlyph index={index} size={22} />{axis.label}</h3>
+        <AxisBar index={index} leftLabel={axis.leftPole} rightLabel={axis.rightPole} value={axis.leftPercent} compact />
+        <details><summary>{visualCopy[locale].details}</summary><p>{axisReading(locale, index, axis.leftPercent, axis.leftPole, axis.rightPole)}</p></details>
       </article>)}</div>
-    </> : <p className="result-summary-neutral">{text.neutral}</p>}
-    <p className="result-summary-balanced">{text.balanced.replace("{count}", String(balanced)).replace("{total}", String(result.axes.length))}</p>
-    <p className="result-summary-caveat">{text.caveat}</p>
+    </> : null}
     <nav className="result-summary-nav" aria-label={text.navigate}>
       <a href="#axis-readings" onClick={navigate}>{text.axes} ↓</a>
       <a href="#ideology-matches" onClick={navigate}>{text.ideologies} ↓</a>

@@ -116,7 +116,10 @@ test("five-language pricing and library expose accurate initial HTML and valid c
     const library = await runtime.request(prefix + "/library"); assert.equal(library.status, 200);
     const html = await library.text(); assert.match(html, /library\/ideologies--liberalismo/);
     const detail = await runtime.request(prefix + "/library/ideologies--liberalismo"); assert.equal(detail.status, 200);
-    const body = await detail.text(); assert.equal((body.match(/<h1[ >]/g) || []).length, 1); assert.match(body, /rel="canonical"/); assert.match(body, /<table/);
+    const body = await detail.text(); assert.equal((body.match(/<h1[ >]/g) || []).length, 1); assert.match(body, /rel="canonical"/); assert.match(body, /class="profile-radar"/);
+    const values = [...body.matchAll(/class="visual-axis-track"[^>]*style="--axis-value:([\d.]+)%"/g)].map(match => Number(match[1]));
+    const catalog = JSON.parse(await readFile(new URL("../app/data/matching.json", import.meta.url), "utf8"));
+    assert.deepEqual(values, catalog.ideologies.find(item => item.id === "liberalismo").vector);
     assert.equal((await runtime.request(prefix + "/library/not-real")).status, 404);
   }
   const sitemap = await (await runtime.request("/sitemap.xml")).text(); assert.match(sitemap, /\/zh\/library\/ideologies--liberalismo/);

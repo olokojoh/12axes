@@ -1,0 +1,45 @@
+.social-share-panel { width:100%; min-width:0; margin:24px 0; padding:24px; border:1px solid #c5dbcd; border-radius:20px; background:linear-gradient(140deg,#f5fbf6,#fff 68%); color:#173c2a; }
+.social-share-panel .share-heading h2 { margin:5px 0 8px; font-size:26px; font-weight:800; line-height:1.2; letter-spacing:-.025em; }
+.social-share-panel .share-eyebrow { font-size:11px; font-weight:800; letter-spacing:.16em; color:#4b765c; }
+.social-share-panel .share-heading p { margin:0; max-width:65ch; font-size:15px; line-height:1.6; color:#52645a; }
+.social-share-panel .share-hub { margin-top:20px; }
+.social-share-panel .share-main-actions { display:flex; flex-wrap:wrap; gap:10px; margin:0 0 14px; }
+.social-share-panel button, .social-share-panel .share-popup-fallback, .social-share-panel .share-open-image { min-height:44px; border:1px solid #bdd0c3; border-radius:12px; font-size:14px; font-weight:700; cursor:pointer; transition:background .16s,transform .16s; }
+.social-share-panel button:hover:not(:disabled) { transform:translateY(-1px); }
+.social-share-panel button:focus-visible,.social-share-panel a:focus-visible,.social-share-panel input:focus-visible { outline:3px solid #19854a; outline-offset:3px; }
+.social-share-panel button:disabled { opacity:.55; cursor:wait; }
+.social-share-panel .share-primary,.social-share-panel .share-secondary { display:inline-flex; align-items:center; justify-content:center; gap:9px; padding:13px 19px; }
+.social-share-panel .share-primary { background:#177543; border-color:#177543; color:white; box-shadow:0 5px 14px #14753d1a; }
+.social-share-panel .share-secondary { background:white; color:#204d33; }
+.social-share-panel .share-main-actions svg { width:18px; height:18px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+.social-share-panel .share-platforms { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:8px; padding:0; border:0; margin:0; }
+.social-share-panel .social-button { display:flex; align-items:center; justify-content:center; gap:7px; padding:12px 8px; color:#fff; border-color:transparent; box-shadow:0 2px 4px #172c1912; }
+.social-share-panel .social-button svg { width:19px; height:19px; flex:0 0 19px; }
+.social-share-panel .social-x { background:#15191d; }
+.social-share-panel .social-facebook { background:#1767c4; }
+.social-share-panel .social-whatsapp { background:#168447; }
+.social-share-panel .social-telegram { background:#147aaf; }
+.social-share-panel .social-reddit { background:#cb3600; }
+.social-share-panel .share-disclosure { margin:12px 0 0; font-size:12px; line-height:1.6; color:#53685a; }
+.social-share-panel .share-extra-actions { display:flex; flex-wrap:wrap; gap:8px; margin:14px 0 0; padding-top:12px; border-top:1px solid #d9e6dc; }
+.social-share-panel .share-extra-actions button { background:white; color:#31553e; font-size:13px; padding:10px 13px; }
+.social-share-panel .share-status { margin:12px 0 0; min-height:0; color:#2d583e; font-size:14px; line-height:1.5; }
+.social-share-panel .share-status:empty { margin:0; }
+.social-share-panel .share-link-area { margin-top:16px; }
+.social-share-panel .share-link-label { display:block; font-size:12px; font-weight:700; color:#54665a; }
+.social-share-panel .share-link-label input { display:block; width:100%; box-sizing:border-box; min-height:44px; margin-top:6px; padding:10px 12px; border:1px solid #c6d9cb; border-radius:10px; background:#fff; color:#345241; font-size:13px; }
+.social-share-panel .share-public-notice,.social-share-panel .share-platform-note { margin:9px 0 0; color:#64736a; font-size:12px; line-height:1.6; }
+.social-share-panel .share-platform-note { margin-top:14px; }
+.social-share-panel .share-public-notice a { color:#17603a; text-decoration:underline; }
+.social-share-panel .share-retry { padding:10px 15px; color:#31553e; background:white; margin-top:12px; }
+.social-share-panel .share-popup-fallback,.social-share-panel .share-open-image { display:inline-flex; align-items:center; padding:10px 14px; background:white; color:#17603a; margin-top:10px; text-decoration:none; }
+.social-share-panel .share-image-formats { display:flex; flex-wrap:wrap; gap:8px; margin-top:16px; }
+.social-share-panel .share-image-formats button { padding:9px 12px; font-size:12px; background:white; color:#345241; }
+.social-share-panel .share-image-formats button[aria-pressed=true] { background:#dff2e5; border-color:#21834c; }
+.social-share-panel .share-image-preview { margin:14px 0 0; padding:12px; border-radius:12px; background:#e9f1eb; }
+.social-share-panel .share-image-preview img { display:block; width:100%; height:auto; margin:auto; }
+.social-share-panel .share-image-preview.portrait img { max-width:360px; }
+.social-share-panel .share-image-preview figcaption { margin-top:10px; text-align:center; font-size:13px; }
+@media(max-width:640px) { .social-share-panel { padding:18px; border-radius:16px; }.social-share-panel .share-heading h2 { font-size:23px; }.social-share-panel .share-main-actions { gap:8px; }.social-share-panel .share-main-actions>button { flex:1 1 150px; padding:12px; }.social-share-panel .share-platforms { grid-template-columns:repeat(3,minmax(0,1fr)); }.social-share-panel .social-button { flex-direction:column; padding:11px 6px; font-size:12px; gap:5px; }.social-share-panel .share-extra-actions>button { flex:1 1 auto; } }
+@media(prefers-reduced-motion:reduce) { .social-share-panel button { transition:none; }.social-share-panel button:hover:not(:disabled) { transform:none; } }
+@media print { .social-share-panel { display:none; } }

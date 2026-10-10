@@ -66,7 +66,7 @@ export async function verifyQuiz(page, base, { locales = ["en", "pt", "es", "ru"
       const match = document.querySelector(".match-card.large")?.getBoundingClientRect();
       const cta = document.querySelector(".paid-report-cta")?.getBoundingClientRect();
       const actions = [document.querySelector('.result-quick-actions a[href="#free-results"]'),
-        document.querySelector(".result-quick-actions > button"), document.querySelector(".result-sharing-top summary")];
+        document.querySelector(".result-quick-actions > button"), document.querySelector('.result-quick-actions a[href="#share-result"]')];
       return Boolean(match && cta && match.top < cta.top && actions.every(action => {
         if (!action) return false;
         const bounds = action.getBoundingClientRect();
