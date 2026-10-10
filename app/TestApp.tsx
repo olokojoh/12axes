@@ -13,6 +13,9 @@ import type { ReportPlan } from "./lib/report-access";
 import { PlusReport } from "./PlusReport";
 import { plusCopy } from "./plus-copy";
 import { resultOfferCopy } from "./result-offer-copy";
+import { SharePanel } from "./SharePanel";
+import { ResultSummary } from "./ResultSummary";
+import { resultSummaryCopy } from "./result-summary-copy";
 import type { PlusReportData } from "./lib/matching";
 import { homeTitles, homeDescriptions, homeSchema } from "./home-seo";
 import { CurrencyEstimate } from "./CurrencyEstimate";
@@ -179,15 +182,11 @@ export function TestApp({ locale: initialLocale }: { locale: Locale }) {
   const advanceTimer = useRef<number | null>(null);
   const [result, setResult] = useState<Result | null>(null);
   const [error, setError] = useState("");
-  const [copied, setCopied] = useState(false);
   const [privateLinkCopied, setPrivateLinkCopied] = useState(false);
-  const [shareId, setShareId] = useState<string | null>(null);
   const [reportToken, setReportToken] = useState<string | null>(null);
   const [resultAxes, setResultAxes] = useState<number[]>([]);
   const [resultQuizLength, setResultQuizLength] = useState(0);
   const [checkoutBusy, setCheckoutBusy] = useState(false);
-  const [shareBusy, setShareBusy] = useState(false);
-  const [shareConsent, setShareConsent] = useState(false);
   const [reportConsent, setReportConsent] = useState(true);
   const [reportPending, setReportPending] = useState(false);
   const resultOfferRef = useRef<HTMLElement>(null);
@@ -281,7 +280,7 @@ export function TestApp({ locale: initialLocale }: { locale: Locale }) {
       quizMeasurement.current = null; measurementEntry.current = "resume";
       if (savedTest.mode !== "results" && !measureQuiz("quiz_resume", selected.length)) measurementEntry.current = "midway";
       setQuestions(selected as Question[]); setAnswers(savedTest.answers); setQuestionIndex(savedTest.questionIndex); setVariant(savedTest.variant); setSaveLocal(true); setSavedTest(null);
-      setShareId(null); setShareConsent(false); setCopied(false); setPrivateLinkCopied(false);
+      setPrivateLinkCopied(false);
       if (savedTest.mode === "results" && selected.every(q => savedTest.answers[q!.id])) await fetchResult(calculateAxes(selected as Question[], savedTest.answers, bank), selected.length, "local_resume");
       else setMode(savedTest.mode === "extend" ? "extend" : "quiz");
     } catch { setError(deepText.resumeError); discardLocal(); }
@@ -295,27 +294,34 @@ export function TestApp({ locale: initialLocale }: { locale: Locale }) {
 
   async function downloadImage() {
     if (!result) return;
-    await document.fonts.ready;
-    const canvas = document.createElement("canvas");
-    canvas.width = 1080; canvas.height = 1450;
-    const ctx = canvas.getContext("2d")!;
-    ctx.fillStyle = "#f8faf7"; ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = "#143c28"; ctx.font = "bold 46px sans-serif"; ctx.fillText("12Axes", 60, 82);
-    ctx.font = "bold 34px sans-serif"; ctx.fillText(result.topMatch.name, 60, 143, 960);
-    ctx.font = "24px sans-serif"; ctx.fillText("12axes.net · " + result.topMatch.compatibility + "% " + auxiliaryUi[locale].match, 60, 190);
-    result.axes.forEach((axis, index) => {
-      const y = 255 + index * 91;
-      ctx.fillStyle = "#143c28"; ctx.font = "bold 24px sans-serif"; ctx.fillText(axis.label, 60, y, 900);
-      ctx.font = "20px sans-serif"; ctx.fillText(axis.leftPole + " " + Math.round(axis.leftPercent) + "%", 60, y + 28, 450);
-      ctx.textAlign = "right"; ctx.fillText(Math.round(axis.rightPercent) + "% " + axis.rightPole, 1020, y + 28, 450); ctx.textAlign = "left";
-      ctx.fillStyle = "#d3dacf"; ctx.fillRect(60, y + 42, 960, 18); ctx.fillStyle = "#187b49"; ctx.fillRect(60, y + 42, 960 * axis.leftPercent / 100, 18);
-    });
-    canvas.toBlob(blob => {
-      if (!blob) return;
-      trackEvent("download_result", { variant: experimentVariant, language: locale, device: deviceClass(), quiz_length: resultQuizLength });
-      const url = URL.createObjectURL(blob); const link = document.createElement("a"); link.href = url; link.download = "12axes-result.png"; link.click(); window.setTimeout(() => URL.revokeObjectURL(url), 1000);
-    }, "image/png");
+    setError("");
+    try {
+      await document.fonts.ready;
+      const canvas = document.createElement("canvas");
+      canvas.width = 1080; canvas.height = 1450;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("Canvas unavailable");
+      ctx.fillStyle = "#f8faf7"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = "#143c28"; ctx.font = "bold 46px sans-serif"; ctx.fillText("12Axes", 60, 82);
+      ctx.font = "bold 34px sans-serif"; ctx.fillText(result.topMatch.name, 60, 143, 960);
+      ctx.font = "24px sans-serif"; ctx.fillText("12axes.net · " + result.topMatch.compatibility + "% " + auxiliaryUi[locale].match, 60, 190);
+      result.axes.forEach((axis, index) => {
+        const y = 255 + index * 91;
+        ctx.fillStyle = "#143c28"; ctx.font = "bold 24px sans-serif"; ctx.fillText(axis.label, 60, y, 900);
+        ctx.font = "20px sans-serif"; ctx.fillText(axis.leftPole + " " + Math.round(axis.leftPercent) + "%", 60, y + 28, 450);
+        ctx.textAlign = "right"; ctx.fillText(Math.round(axis.rightPercent) + "% " + axis.rightPole, 1020, y + 28, 450); ctx.textAlign = "left";
+        ctx.fillStyle = "#d3dacf"; ctx.fillRect(60, y + 42, 960, 18); ctx.fillStyle = "#187b49"; ctx.fillRect(60, y + 42, 960 * axis.leftPercent / 100, 18);
+      });
+      const blob = await new Promise<Blob>((resolve, reject) => canvas.toBlob(value => value ? resolve(value) : reject(new Error("PNG export failed")), "image/png"));
+      const url = URL.createObjectURL(blob);
+      try {
+        const link = document.createElement("a"); link.href = url; link.download = "12axes-result.png"; link.click();
+      } finally { window.setTimeout(() => URL.revokeObjectURL(url), 1000); }
+      try { trackEvent("download_result", { variant: experimentVariant, language: locale, device: deviceClass(), quiz_length: resultQuizLength }); }
+      catch { /* Analytics must not affect a completed download. */ }
+    } catch { setError(resultOfferCopy[locale].downloadError); }
   }
+
   const experimentVariant = "baseline";
   const paidText = reportUi[locale];
 
@@ -352,7 +358,7 @@ export function TestApp({ locale: initialLocale }: { locale: Locale }) {
       const chosen = selectQuestions(payload, nextVariant);
       setSaveLocal(true);
       setLocalSaved(false);
-      setShareId(null); setShareConsent(false); setCopied(false); setPrivateLinkCopied(false);
+      setPrivateLinkCopied(false);
       setPaid(false); setPlan("basic"); setPlus(null); setDeep(null); setReportToken(null); setHasOriginal(false); setOriginalView(false); setEntitlement("basic"); setAnswerConsent(true);
       setQuestions(chosen);
       setAnswers({});
@@ -452,7 +458,6 @@ export function TestApp({ locale: initialLocale }: { locale: Locale }) {
       const response = await fetch("/api/share?id=" + encodeURIComponent(id));
       if (!response.ok) throw new Error();
       const payload = await response.json() as { axes: number[]; quizLength: number };
-      setShareId(id);
       await fetchResult(payload.axes, payload.quizLength, "share");
     } catch {
       setError(auxiliaryUi[locale].resultError);
@@ -620,31 +625,8 @@ export function TestApp({ locale: initialLocale }: { locale: Locale }) {
     discardLocal();
     setReportToken(null);
     setReportPending(false);
-    setShareId(null);
     setReportConsent(true);
-    setShareConsent(false);
     setError("");
-  }
-
-  async function shareResult() {
-    if (shareBusy || !shareConsent) return;
-    setShareBusy(true);
-    setError("");
-    try {
-      let id = shareId;
-      if (!id) {
-        const response = await fetch("/api/share", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ axes: resultAxes, locale, variant: experimentVariant, quizLength: resultQuizLength, consent: true }) });
-        if (!response.ok) throw new Error();
-        id = (await response.json() as { id: string }).id;
-        setShareId(id);
-      }
-      const url = new URL(localePath(locale, "/results") + "?share=" + encodeURIComponent(id), window.location.origin).toString();
-      await navigator.clipboard.writeText(url);
-      trackEvent("share_result", { variant: experimentVariant, language: locale, device: deviceClass(), quiz_length: resultQuizLength });
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 1800);
-    } catch { setError(paidText.shareError); }
-    finally { setShareBusy(false); }
   }
 
   function switchLocale(next: string) {
@@ -655,6 +637,7 @@ export function TestApp({ locale: initialLocale }: { locale: Locale }) {
     setLocale(target);
     setError(current => {
       for (const source of locales) {
+        if (current === resultOfferCopy[source].downloadError) return resultOfferCopy[target].downloadError;
         for (const key of ["loadError", "resultError", "answerError"] as const) if (current === auxiliaryUi[source][key]) return auxiliaryUi[target][key];
         for (const key of ["reportError", "checkoutError", "shareError"] as const) if (current === reportUi[source][key]) return reportUi[target][key];
       }
@@ -824,21 +807,15 @@ export function TestApp({ locale: initialLocale }: { locale: Locale }) {
       <main className="app-shell result-shell" ref={resultOfferRef}>
         <AppHeader locale={locale} onLocale={switchLocale} compact onHome={() => setMode("home")} action={text.retake} onAction={reset} />
         <div className="result-offer">
-          <ResultMatch match={result.topMatch} label={text.topMatch} locale={locale} large />
+          {paid ? <ResultSummary locale={locale} result={result} quizLength={resultQuizLength} paid={paid} plan={plan} /> : <ResultMatch match={result.topMatch} label={text.topMatch} locale={locale} large />}
           <div className="result-quick-actions">
-            <a className="secondary-button" href="#free-results" onClick={event => { event.preventDefault(); trackEvent("free_result_click", { language: locale, device: deviceClass(), quiz_length: resultQuizLength }); document.getElementById("free-results")?.scrollIntoView(); }}>{deepText.freeResults} ↓</a>
+            <a className="secondary-button" href="#free-results" onClick={event => { event.preventDefault(); trackEvent("free_result_click", { language: locale, device: deviceClass(), quiz_length: resultQuizLength }); document.getElementById("free-results")?.scrollIntoView(); }}>{paid ? resultSummaryCopy[locale].readReport : deepText.freeResults} ↓</a>
             <button className="secondary-button" onClick={downloadImage}>{deepText.download}</button>
-            <details className="result-sharing-top">
-              <summary className="secondary-button">{offerText.share}</summary>
-              <div className="share-controls">
-                <label className="consent-label result-consent"><input type="checkbox" checked={shareConsent} onChange={event => setShareConsent(event.target.checked)} />{paidText.shareConsent}</label>
-                <button className="primary-button" disabled={shareBusy || !shareConsent} onClick={shareResult}>{copied ? text.copied : text.share} ↗</button>
-              </div>
-            </details>
+            <SharePanel key={resultAxes.join(",") + ":" + resultQuizLength} locale={resultLocale} axes={resultAxes} quizLength={resultQuizLength} result={result} />
           </div>
           <section className="paid-report-cta">
             <h2>{paid ? plan === "deep" ? deepText.name : plan === "plus" ? plusText.plus : paidText.unlocked : plusText.choose}</h2>
-            <p>{paid ? paidText.body : plusText.optional}</p>
+            <p>{paid ? resultSummaryCopy[locale].contents[plan] : plusText.optional}</p>
             {paid ? <>{hasOriginal && <p>{deepText.retestNote} <button className="text-button" onClick={() => { const original = !originalView; setOriginalView(original); void fetchPaidReport(reportToken!, false, original); }}>{originalView ? deepText.latest : deepText.original}</button></p>}<div className="result-actions">
               <button className="primary-button" onClick={() => window.print()}>{paidText.pdf}</button>
               <button className="secondary-button" onClick={async () => {
@@ -848,8 +825,7 @@ export function TestApp({ locale: initialLocale }: { locale: Locale }) {
                   window.setTimeout(() => setPrivateLinkCopied(false), 1800);
                 } catch { setError(paidText.shareError); }
               }}>{privateLinkCopied ? text.copied : privateLinkLabel[locale]}</button>
-            </div>{entitlement === "basic" && <div className="upgrade-offer"><h3>{plusText.plus}</h3><p>{plusText.upgradeNote}</p><ul>{plusText.features.map(feature => <li key={feature}>{feature}</li>)}<li>{deepText.plusExtra}</li></ul><button className="primary-button" disabled={!reportConsent || checkoutBusy} onClick={() => startCheckout("plus")}>{checkoutBusy ? paidText.wait : plusText.upgrade}</button><CurrencyEstimate locale={locale} amount={5} /></div>}
-              {entitlement !== "deep" && <div className="upgrade-offer deep-plan-card"><span className="plan-attention-star" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m12 1.75 2.95 5.98 6.6.96-4.78 4.66 1.13 6.58L12 16.82l-5.9 3.1 1.13-6.58-4.78-4.66 6.6-.96L12 1.75Z" /></svg></span><h3>{deepText.name}</h3><p>{deepText.upgradeNote}</p><ul>{deepText.features.map(feature => <li key={feature}>{feature}</li>)}</ul>{currentEvidence ? <><label className="consent-label"><input type="checkbox" checked={answerConsent} onChange={event => setAnswerConsent(event.target.checked)} />{deepText.consent}</label><button className="primary-button" disabled={!answerConsent || checkoutBusy} onClick={() => startCheckout("deep")}>{deepText.upgrade} · US${entitlement === "plus" ? "5" : "10"}</button><CurrencyEstimate locale={locale} amount={entitlement === "plus" ? 5 : 10} /></> : <><p>{deepText.needsQuiz}</p><button className="primary-button" onClick={prepareDeepRetake}>{deepText.retake}</button></>}</div>}</> : <>
+            </div></> : <>
               <label className="consent-label purchase-consent"><input type="checkbox" checked={reportConsent} onChange={(event) => setReportConsent(event.target.checked)} /><span>{paidText.consent} <a href={localePath(locale, "/privacy")}>{paidText.privacy}</a></span></label>
               {currentEvidence && <label className="consent-label purchase-consent answer-consent"><input type="checkbox" checked={answerConsent} onChange={event => setAnswerConsent(event.target.checked)} /><span>{deepText.consent}</span></label>}
               <div className="plan-options three-plans result-plan-options">
@@ -900,7 +876,7 @@ export function TestApp({ locale: initialLocale }: { locale: Locale }) {
           {(questions.length > 0 && neutralCount >= questions.length / 2) && <p className="result-caveat">{deepText.insufficient}</p>}
           {auxiliaryUi[locale].fallbackNote && <p className="result-note">{auxiliaryUi[locale].fallbackNote}</p>}
         </section>
-        <section className="axis-results" aria-label="12 axes">
+        <section className="axis-results" id="axis-readings" aria-label="12 axes">
           {result.axes.map((axis, index) => {
             const localizedAxis = data?.axes.find((item) => item.id === axis.axisId);
             return <article className="axis-result" key={axis.axisId}>
@@ -912,7 +888,7 @@ export function TestApp({ locale: initialLocale }: { locale: Locale }) {
             </article>;
           })}
         </section>
-        <section className="result-section">
+        <section className="result-section" id="ideology-matches">
           <div className="section-heading"><span className="eyebrow">{text.otherMatches}</span><h2>{text.otherMatches}</h2></div>
           <div className="match-grid">{result.matches.slice(1, paid ? 10 : 4).map((match) => <ResultMatch match={match} locale={locale} key={match.ideologyId} />)}</div>
         </section>
@@ -926,8 +902,10 @@ export function TestApp({ locale: initialLocale }: { locale: Locale }) {
           <div><span className="eyebrow">{text.personality}</span><h2>{result.topPersonalityMatch.name}</h2><p className="entity-tags">{result.topPersonalityMatch.role} {result.topPersonalityMatch.lifespan}</p><p>{result.topPersonalityMatch.description}</p></div>
           <strong>{Math.round(result.topPersonalityMatch.compatibility)}% {auxiliaryUi[locale].match}</strong>
         </section>
-        {paid && deep && reportToken && <DeepReport data={deep} token={reportToken} locale={locale} />}
-        {paid && plus && reportToken && <PlusReport data={plus} token={reportToken} locale={locale} original={originalView} />}
+        {paid && deep && reportToken && <div id="answer-evidence"><DeepReport data={deep} token={reportToken} locale={locale} /></div>}
+        {paid && plus && reportToken && <div id="report-comparisons"><PlusReport data={plus} token={reportToken} locale={locale} original={originalView} /></div>}
+        {paid && entitlement !== "deep" && <details className="report-upgrades"><summary>{resultSummaryCopy[locale].optionalUpgrades}</summary>{entitlement === "basic" && <div className="upgrade-offer"><h3>{plusText.plus}</h3><p>{plusText.upgradeNote}</p><ul>{plusText.features.map(feature => <li key={feature}>{feature}</li>)}<li>{deepText.plusExtra}</li></ul><button className="primary-button" disabled={!reportConsent || checkoutBusy} onClick={() => startCheckout("plus")}>{checkoutBusy ? paidText.wait : plusText.upgrade}</button><CurrencyEstimate locale={locale} amount={5} /></div>}
+              <div className="upgrade-offer deep-plan-card"><span className="plan-attention-star" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m12 1.75 2.95 5.98 6.6.96-4.78 4.66 1.13 6.58L12 16.82l-5.9 3.1 1.13-6.58-4.78-4.66 6.6-.96L12 1.75Z" /></svg></span><h3>{deepText.name}</h3><p>{deepText.upgradeNote}</p><ul>{deepText.features.map(feature => <li key={feature}>{feature}</li>)}</ul>{currentEvidence ? <><label className="consent-label"><input type="checkbox" checked={answerConsent} onChange={event => setAnswerConsent(event.target.checked)} />{deepText.consent}</label><button className="primary-button" disabled={!answerConsent || checkoutBusy} onClick={() => startCheckout("deep")}>{deepText.upgrade} · US${entitlement === "plus" ? "5" : "10"}</button><CurrencyEstimate locale={locale} amount={entitlement === "plus" ? 5 : 10} /></> : <><p>{deepText.needsQuiz}</p><button className="primary-button" onClick={prepareDeepRetake}>{deepText.retake}</button></>}</div></details>}
         <div className="result-actions">
           <button className="secondary-button" onClick={reset}>{text.retake}</button>
         </div>

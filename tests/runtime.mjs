@@ -24,7 +24,7 @@ export async function createRuntime(options = {}) {
     modules: true, scriptPath: output,
     compatibilityDate: "2026-05-15", compatibilityFlags: ["nodejs_compat"],
     d1Databases: ["DB"],
-    bindings: { REPORT_ENCRYPTION_KEY: testSecret, STRIPE_WEBHOOK_SECRET: "whsec_test_fixture", RESEND_API_KEY: "synthetic-not-a-real-key", ...options.bindings },
+    bindings: { REPORT_ENCRYPTION_KEY: testSecret, STRIPE_WEBHOOK_SECRET: "whsec_test_fixture", RESEND_API_KEY: "synthetic-not-a-real-key", PUBLIC_BASE_URL: "https://12axes.test", ...options.bindings },
     outboundService: options.outboundService,
     queueProducers: { REPORT_EMAIL_QUEUE: "test-report-email" },
     queueConsumers: { "test-report-email": { maxBatchTimeout: 0 } },
@@ -45,7 +45,7 @@ export async function createRuntime(options = {}) {
     if (!response.ok) throw new Error(await response.text());
     return response.json();
   }])); }, run() { return this.bind().run(); } }; } };
-  for (const migration of ["0001_billing.sql", "0002_support.sql", "0003_refunds.sql", "0004_report_plus.sql", "0005_deep_report.sql", "0006_purchase_measurement.sql"]) {
+  for (const migration of ["0001_billing.sql", "0002_support.sql", "0003_refunds.sql", "0004_report_plus.sql", "0005_deep_report.sql", "0006_purchase_measurement.sql", "0007_share_cards.sql"]) {
     const sql = await readFile(new URL("../migrations/" + migration, import.meta.url), "utf8");
     for (const statement of sql.split(";").filter((part) => part.trim())) await db.prepare(statement).run();
   }

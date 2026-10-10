@@ -13,6 +13,7 @@ export const resultOfferCopy: Record<Locale, {
   sampleComparison: string;
   sampleEvidence: string;
   share: string;
+  downloadError: string;
   extendTime: string;
 }> = {
   en: {
@@ -28,6 +29,7 @@ export const resultOfferCopy: Record<Locale, {
     sampleReading: "In this fictional example, the result is 65% toward federalism, 15 percentage points from the 50% midpoint. Federalism distributes authority across regions; unitarism concentrates it nationally. The score describes a position in the model, not the probability that someone belongs to a political group.",
     sampleComparison: "Example: a result of 65% toward federalism compared with a reference profile at 55% gives a difference of 10 percentage points. Reference profiles are model values, not population averages.",
     sampleEvidence: "Separate example: three answer positions of 100, 50 and 50 average to 67 after rounding. Change one 50 to 0 and the average becomes 50. This demonstrates how the model responds; it is not a prediction and does not change a saved report.",
+    downloadError: "Could not create the result image. Please try downloading it again.",
     share: "Share result", extendTime: "Answer 24 more · about 4 minutes",
   },
   pt: {
@@ -43,6 +45,7 @@ export const resultOfferCopy: Record<Locale, {
     sampleReading: "Neste exemplo fictício, o resultado é de 65% em direção ao federalismo, a 15 pontos percentuais do centro de 50%. O federalismo distribui o poder entre regiões; o unitarismo o concentra no nível nacional. A pontuação descreve uma posição no modelo, não a probabilidade de alguém pertencer a um grupo político.",
     sampleComparison: "Exemplo: um resultado de 65% em direção ao federalismo e um perfil de referência de 55% têm uma diferença de 10 pontos percentuais. Os perfis são valores do modelo, não médias populacionais.",
     sampleEvidence: "Outro exemplo: três posições de resposta de 100, 50 e 50 têm média arredondada de 67. Trocar um dos valores 50 por 0 reduz a média para 50. Isso demonstra a resposta do modelo; não é uma previsão nem altera o relatório salvo.",
+    downloadError: "Não foi possível criar a imagem do resultado. Tente baixá-la novamente.",
     share: "Compartilhar resultado", extendTime: "Mais 24 perguntas · cerca de 4 minutos",
   },
   es: {
@@ -58,6 +61,7 @@ export const resultOfferCopy: Record<Locale, {
     sampleReading: "En este ejemplo ficticio, el resultado es del 65% hacia el federalismo, a 15 puntos porcentuales del punto medio del 50%. El federalismo distribuye el poder entre regiones; el unitarismo lo concentra a escala nacional. La puntuación describe una posición en el modelo, no la probabilidad de que alguien pertenezca a un grupo político.",
     sampleComparison: "Ejemplo: un resultado del 65% hacia el federalismo y un perfil de referencia del 55% tienen una diferencia de 10 puntos porcentuales. Los perfiles son valores del modelo, no medias poblacionales.",
     sampleEvidence: "Otro ejemplo: tres posiciones de respuesta de 100, 50 y 50 dan una media redondeada de 67. Cambiar uno de los valores 50 a 0 lleva la media a 50. Así responde el modelo; no es una predicción ni modifica el informe guardado.",
+    downloadError: "No se pudo crear la imagen del resultado. Intenta descargarla de nuevo.",
     share: "Compartir resultado", extendTime: "24 preguntas más · unos 4 minutos",
   },
   ru: {
@@ -73,6 +77,7 @@ export const resultOfferCopy: Record<Locale, {
     sampleReading: "В этом вымышленном примере результат составляет 65% в сторону федерализма — на 15 процентных пунктов от середины шкалы в 50%. Федерализм распределяет полномочия между регионами, а унитаризм концентрирует их в центре. Балл описывает положение в модели, а не вероятность принадлежности человека к политической группе.",
     sampleComparison: "Пример: результат 65% в сторону федерализма и эталонный профиль с 55% различаются на 10 процентных пунктов. Профили содержат значения модели, а не средние показатели населения.",
     sampleEvidence: "Другой пример: три позиции ответов — 100, 50 и 50 — дают округлённое среднее 67. Если заменить одно значение 50 на 0, среднее станет 50. Это демонстрация работы модели, а не прогноз; сохранённый отчёт не меняется.",
+    downloadError: "Не удалось создать изображение результата. Попробуйте скачать его ещё раз.",
     share: "Поделиться результатом", extendTime: "Ещё 24 вопроса · около 4 минут",
   },
   zh: {
@@ -88,6 +93,7 @@ export const resultOfferCopy: Record<Locale, {
     sampleReading: "在这份虚构示例中，结果在联邦制一端为 65%，距 50% 中点 15 个百分点。联邦制强调地区分权，单一制强调全国集中权限。分数仅描述模型中的位置，不代表某人属于某个政治群体的概率。",
     sampleComparison: "示例：某结果在联邦制一端为 65%，参考画像为 55%，相差 10 个百分点。参考画像是模型数值，不是人口实测平均值。",
     sampleEvidence: "另一示例：三个回答的位置为 100、50、50，平均值四舍五入为 67。将其中一个 50 改为 0 后，平均值变为 50。这是模型运算演示，不是预测，也不会修改已保存的报告。",
+    downloadError: "暂时无法生成结果图片，请重新下载。",
     share: "分享结果", extendTime: "再答 24 题 · 约 4 分钟",
   },
 };

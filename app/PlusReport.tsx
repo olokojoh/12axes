@@ -22,8 +22,10 @@ export function PlusReport({ data, token, locale, original = false }: { data: Pl
     setBusy(true); setError(false); setComparison(null);
     try {
       const url = new URL(shareLink.trim());
-      if (![window.location.origin, "https://12axes.net", "https://www.12axes.net"].includes(url.origin) || !/^\/(?:pt\/|es\/|ru\/|zh\/)?results$/.test(url.pathname) || url.hash) throw new Error();
-      const response = await fetch("/api/report/compare", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ token, shareId: url.searchParams.get("share"), locale, consent, original }) });
+      const publicShare = url.pathname.match(/^\/(?:pt\/|es\/|ru\/|zh\/)?share\/([A-Za-z0-9_-]{43})$/);
+      const legacyShare = /^\/(?:pt\/|es\/|ru\/|zh\/)?results$/.test(url.pathname) ? url.searchParams.get("share") : null;
+      if (![window.location.origin, "https://12axes.net", "https://www.12axes.net"].includes(url.origin) || url.hash || (!publicShare && !legacyShare)) throw new Error();
+      const response = await fetch("/api/report/compare", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ token, shareId: publicShare?.[1] ?? legacyShare, locale, consent, original }) });
       if (!response.ok) throw new Error();
       setComparison(await response.json());
     } catch { setError(true); } finally { setBusy(false); }
